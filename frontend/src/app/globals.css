@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+/*
+ * Lexi Design System tokens — ported from the Claude Design project
+ * "Lexi Design System" (a5d95d8a-72ec-40a7-89dc-ed66b7367b40).
+ * Fonts are loaded via next/font/google (see src/lib/fonts.ts) rather than
+ * the project's raw @import, for self-hosting + no layout shift; every other
+ * token below is a direct port of tokens/colors.css, tokens/effects.css and
+ * tokens/typography.css.
+ */
+
+:root {
+  /* --- Base palette --- */
+  --paper: #fcfcfa;
+  --surface: #ffffff;
+  --ink: #1d2b4f;
+  --ink-soft: #55618a;
+  --ink-faint: #8890ac;
+  --pen: #2a4fd6;
+  --pen-soft: #e7ecfc;
+  --correction: #d6362a;
+  --correction-soft: #fbeae8;
+  --check: #2f9e5b;
+  --check-soft: #e5f5ec;
+  --highlight: #f5c518;
+  --grid-line: #eef0f6;
+  --border: #d8dce8;
+
+  /* --- Spacing scale (px) --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* --- Radii --- */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-full: 999px;
+
+  /* --- Shadows --- */
+  --shadow-card: 0 1px 2px rgba(29, 43, 79, 0.06), 0 6px 20px rgba(29, 43, 79, 0.07);
+  --shadow-sm: 0 1px 2px rgba(29, 43, 79, 0.08);
+
+  /* --- The ruled-paper texture --- */
+  --paper-rule: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--grid-line) 28px);
+
+  /* --- Motion --- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 150ms;
+
+  /* --- Type scale (px) --- */
+  --text-3xl: 30px;
+  --text-2xl: 24px;
+  --text-xl: 20px;
+  --text-lg: 18px;
+  --text-base: 16px;
+  --text-sm: 14px;
+  --text-xs: 12px;
+  --text-2xs: 10.5px;
+
+  /* --- Tracking --- */
+  --tracking-tight: -0.01em;
+  --tracking-label: 0.14em;
+  --tracking-wide: 0.06em;
+
+  /* --- Line heights --- */
+  --leading-tight: 1.1;
+  --leading-snug: 1.35;
+  --leading-normal: 1.55;
+}
+
+/*
+ * Dark theme. Declared once and applied in two ways:
+ *   1. the OS preference, unless the user has explicitly chosen light
+ *   2. an explicit user choice, which must win over the OS in both directions
+ * `data-theme` is stamped on <html> by ThemeProvider (and by an inline script
+ * in layout.tsx, so the correct theme paints on the very first frame).
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12151c;
+    --surface: #191d26;
+    --ink: #e9ebf3;
+    --ink-soft: #a6acc2;
+    --ink-faint: #6b7386;
+    --pen: #7c93ff;
+    --pen-soft: #232a4a;
+    --correction: #f0665a;
+    --correction-soft: #3a2321;
+    --check: #4fc886;
+    --check-soft: #1a3327;
+    --highlight: #e0b400;
+    --grid-line: #242a38;
+    --border: #2a2f3d;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #12151c;
+  --surface: #191d26;
+  --ink: #e9ebf3;
+  --ink-soft: #a6acc2;
+  --ink-faint: #6b7386;
+  --pen: #7c93ff;
+  --pen-soft: #232a4a;
+  --correction: #f0665a;
+  --correction-soft: #3a2321;
+  --check: #4fc886;
+  --check-soft: #1a3327;
+  --highlight: #e0b400;
+  --grid-line: #242a38;
+  --border: #2a2f3d;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-pen: var(--pen);
+  --color-pen-soft: var(--pen-soft);
+  --color-correction: var(--correction);
+  --color-correction-soft: var(--correction-soft);
+  --color-check: var(--check);
+  --color-check-soft: var(--check-soft);
+  --color-highlight: var(--highlight);
+  --color-grid-line: var(--grid-line);
+  --color-border: var(--border);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-card: var(--shadow-card);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background-color: var(--paper);
+  background-image: var(--paper-rule);
+  color: var(--ink);
+  font-family: var(--font-body), Georgia, serif;
+}
+
+::selection {
+  background: var(--highlight);
+  color: #1d2b4f;
+}
+
+a {
+  color: var(--pen);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--pen);
+}
+
+* {
+  border-color: var(--border);
+}
