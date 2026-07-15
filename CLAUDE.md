@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Phase 1, milestone **M1 complete** (accounts, login, data model, decks/cards viewable end-to-end). Next up is **M2: the FSRS review loop** (`/review/due` + `/review/grade`). See `docs/SoW_LanguageApp_Phase1.md` §7 for the M1–M6 milestone list.
+Phase 1, milestone **M4 complete** (accounts, login, data model, decks/cards, the FSRS review loop, admin add-vocab + AI enrichment, and the auto-generated quiz that feeds the scheduler: `/quiz` + `/quiz/answer`). Next up is **M5: streaks + reminders (daily email/push)**. See `docs/SoW_LanguageApp_Phase1.md` §7 for the M1–M6 milestone list.
 
-The student **Review and Quiz screens still run on fixture data** inside `frontend/src/components/apps/StudentApp.tsx` — only the Home screen is wired to the API. The entire `AdminApp.tsx` is likewise still mock-only (M3/M6 wire it up). Don't mistake those fixtures for working features.
+The student **Home, Review, and Quiz screens are all wired to the API** (`frontend/src/components/apps/StudentApp.tsx`). `AdminApp.tsx` is wired for M3 (decks, fast-add + enrichment, assignment); the **admin dashboard** parts (per-student progress, "who's slipping") are still M6 backlog. Don't mistake any remaining fixtures for working features.
 
 ## What this is
 

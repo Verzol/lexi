@@ -48,6 +48,10 @@ DATABASE_URL=postgresql+psycopg://postgres.<ref>:<password>@aws-0-<region>.poole
 
 # Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))"
 JWT_SECRET=<a-long-random-string>
+
+# Optional: enables the teacher's AI vocab enrichment (definition/IPA/example).
+# If unset, the enrich endpoints return 503 and the teacher fills cards by hand.
+ANTHROPIC_API_KEY=<your-anthropic-key>
 ```
 
 Then:
@@ -129,12 +133,12 @@ cd frontend && npx tsc --noEmit && npm run lint
 |    | Milestone                                             | Status |
 | -- | ----------------------------------------------------- | ------ |
 | M1 | Accounts, login, data model, decks viewable           | Done   |
-| M2 | FSRS review loop (`/review/due`, `/review/grade`) | Next   |
-| M3 | Teacher add-vocab + AI enrichment                     |        |
-| M4 | Quizzes + timer                                       |        |
-| M5 | Streaks + daily reminders                             |        |
+| M2 | FSRS review loop (`/review/due`, `/review/grade`) | Done   |
+| M3 | Teacher add-vocab + AI enrichment                     | Done   |
+| M4 | Quizzes + timer (`/quiz`, `/quiz/answer`)         | Done   |
+| M5 | Streaks + daily reminders                             | Next   |
 | M6 | Teacher dashboard ("who's slipping")                  |        |
 
-**Note:** the student Review/Quiz screens and the entire admin page still run on fixture data. They look finished but are not wired to the API yet (M2/M3/M6 will do that). Only the student Home screen uses real data.
+**Note:** the student flow (Home, Review, Quiz) is fully wired to the API, and the admin page is wired for M3 (decks, fast-add + AI enrichment, deck assignment). What is still fixture/mock is the **admin dashboard** — per-student progress and the "who's slipping" view land in M6.
 
 Out of scope for Phase 1 (see SoW §5): mock exams, quests, a content library, XP/badges/leaderboards, multi-language, native apps.

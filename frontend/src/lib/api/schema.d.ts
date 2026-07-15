@@ -130,6 +130,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/review/due": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review Due
+         * @description The student's queue for right now — due review cards plus rationed new cards.
+         */
+        get: operations["review_due_review_due_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/review/grade": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review Grade
+         * @description Record one grade and reschedule the card via FSRS.
+         */
+        post: operations["review_grade_review_grade_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/quiz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Quiz
+         * @description A short auto-generated quiz over the student's known cards. Empty if none.
+         */
+        get: operations["get_quiz_quiz_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/quiz/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Quiz
+         * @description Grade one quiz answer and feed the result to FSRS: a hit grades `good`, a
+         *     miss grades `again` so the card comes back sooner (SoW §4).
+         */
+        post: operations["answer_quiz_quiz_answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/streak": {
         parameters: {
             query?: never;
@@ -183,6 +264,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/cards/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Card
+         * @description Delete a card. Blocked once it has review history — `reviews` is an
+         *     append-only log we never destroy; drop the per-student scheduling state
+         *     (regenerated lazily) and remove the card only when nothing has graded it.
+         */
+        delete: operations["delete_card_admin_cards__card_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Card
+         * @description Edit a card's fields, or move it to another deck by setting `deck_id`.
+         */
+        patch: operations["update_card_admin_cards__card_id__patch"];
+        trace?: never;
+    };
+    "/admin/enrich": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enrich
+         * @description Draft a card with AI for the teacher to review. Nothing is saved here.
+         */
+        post: operations["enrich_admin_enrich_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/enrich/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enrich Bulk
+         * @description Paste-a-list enrichment: one draft per term, failures reported per row so
+         *     one bad word doesn't sink the batch.
+         */
+        post: operations["enrich_bulk_admin_enrich_bulk_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/students/{student_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Student
+         * @description Teacher edits to a student — including their daily new-card target.
+         */
+        patch: operations["update_student_admin_students__student_id__patch"];
+        trace?: never;
+    };
     "/admin/assignments": {
         parameters: {
             query?: never;
@@ -194,6 +362,26 @@ export interface paths {
         put?: never;
         /** Assign Deck */
         post: operations["assign_deck_admin_assignments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/assignments/class": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign Deck To Class
+         * @description Push a deck to every student at once (idempotent — reactivates existing).
+         */
+        post: operations["assign_deck_to_class_admin_assignments_class_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -268,6 +456,27 @@ export interface components {
             /** Active */
             active: boolean;
         };
+        /**
+         * BulkEnrichItem
+         * @description One row of a paste-a-list enrichment: a draft, or an error for that term.
+         */
+        BulkEnrichItem: {
+            /** Term */
+            term: string;
+            /** Meaning */
+            meaning?: string | null;
+            /** Ipa */
+            ipa?: string | null;
+            /** Example Sentence */
+            example_sentence?: string | null;
+            /** Error */
+            error?: string | null;
+        };
+        /** BulkEnrichRequest */
+        BulkEnrichRequest: {
+            /** Terms */
+            terms: string[];
+        };
         /** CardCreate */
         CardCreate: {
             /** Term */
@@ -306,6 +515,38 @@ export interface components {
          * @enum {string}
          */
         CardSource: "manual" | "ai-enriched";
+        /**
+         * CardStateEnum
+         * @enum {string}
+         */
+        CardStateEnum: "new" | "learning" | "review" | "lapsed";
+        /**
+         * CardUpdate
+         * @description Partial edit of a card. Any field left unset is untouched; setting
+         *     `deck_id` moves the card to another deck.
+         */
+        CardUpdate: {
+            /** Term */
+            term?: string | null;
+            /** Meaning */
+            meaning?: string | null;
+            /** Ipa */
+            ipa?: string | null;
+            /** Example Sentence */
+            example_sentence?: string | null;
+            /** Deck Id */
+            deck_id?: number | null;
+        };
+        /**
+         * ClassAssignmentCreate
+         * @description Assign a deck to every student at once (SoW §4 whole-class control).
+         */
+        ClassAssignmentCreate: {
+            /** Deck Id */
+            deck_id: number;
+            /** Daily New Target */
+            daily_new_target?: number | null;
+        };
         /** CreateStudentRequest */
         CreateStudentRequest: {
             /**
@@ -355,6 +596,49 @@ export interface components {
             /** Topic Tags */
             topic_tags: string[];
         };
+        /** EnrichRequest */
+        EnrichRequest: {
+            /** Term */
+            term: string;
+        };
+        /**
+         * EnrichmentOut
+         * @description An AI-drafted card the teacher reviews before saving — nothing persisted.
+         */
+        EnrichmentOut: {
+            /** Term */
+            term: string;
+            /** Meaning */
+            meaning: string;
+            /** Ipa */
+            ipa: string;
+            /** Example Sentence */
+            example_sentence: string;
+        };
+        /** GradeIn */
+        GradeIn: {
+            /** Card Id */
+            card_id: number;
+            rating: components["schemas"]["Rating"];
+            /** Elapsed Ms */
+            elapsed_ms?: number | null;
+        };
+        /**
+         * GradeOut
+         * @description The scheduler's verdict: when this card comes back and in what state.
+         */
+        GradeOut: {
+            /** Card Id */
+            card_id: number;
+            state: components["schemas"]["CardStateEnum"];
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /** Reps */
+            reps: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -370,6 +654,100 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** QuizAnswerIn */
+        QuizAnswerIn: {
+            /** Card Id */
+            card_id: number;
+            kind: components["schemas"]["QuizKind"];
+            /** Answer */
+            answer: string;
+            /** Elapsed Ms */
+            elapsed_ms?: number | null;
+        };
+        /**
+         * QuizAnswerOut
+         * @description The verdict for one answer. A miss feeds the scheduler as `again` so the
+         *     card comes back sooner; a hit feeds it as `good` (SoW §4: quizzes feed FSRS).
+         */
+        QuizAnswerOut: {
+            /** Card Id */
+            card_id: number;
+            /** Correct */
+            correct: boolean;
+            /** Correct Answer */
+            correct_answer: string;
+            state: components["schemas"]["CardStateEnum"];
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+        };
+        /**
+         * QuizKind
+         * @description The two quiz formats from SoW §4. API-only — never persisted, so it lives
+         *     here beside the request/response shapes rather than in `models/enums.py`.
+         * @enum {string}
+         */
+        QuizKind: "mcq" | "type_answer";
+        /**
+         * QuizQuestion
+         * @description One generated question. Only the fields the given `kind` needs are set:
+         *     the correct answer is never sent — grading happens server-side in `/quiz/answer`.
+         *
+         *     - mcq: `term` + `ipa` shown, `options` are meanings to choose between.
+         *     - type_answer: `meaning` (+ blanked `example_sentence`) shown, student types the term.
+         */
+        QuizQuestion: {
+            /** Card Id */
+            card_id: number;
+            kind: components["schemas"]["QuizKind"];
+            /** Term */
+            term?: string | null;
+            /** Ipa */
+            ipa?: string | null;
+            /** Meaning */
+            meaning?: string | null;
+            /** Example Sentence */
+            example_sentence?: string | null;
+            /** Options */
+            options?: string[] | null;
+        };
+        /**
+         * Rating
+         * @enum {string}
+         */
+        Rating: "again" | "hard" | "good" | "easy";
+        /**
+         * ReviewCardOut
+         * @description A due card as the student reviews it — everything the Flashcard renders.
+         */
+        ReviewCardOut: {
+            /** Card Id */
+            card_id: number;
+            /** Deck Id */
+            deck_id: number;
+            /** Term */
+            term: string;
+            /** Meaning */
+            meaning: string;
+            /** Ipa */
+            ipa?: string | null;
+            /** Example Sentence */
+            example_sentence?: string | null;
+            /** Image Url */
+            image_url?: string | null;
+            /** Audio Url */
+            audio_url?: string | null;
+            /** Exam Tag */
+            exam_tag?: string | null;
+            state: components["schemas"]["CardStateEnum"];
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+        };
         /** StreakOut */
         StreakOut: {
             /** Current Streak */
@@ -378,6 +756,18 @@ export interface components {
             longest_streak: number;
             /** Freezes Remaining */
             freezes_remaining: number;
+        };
+        /**
+         * StudentUpdate
+         * @description Teacher edits to a student — notably the per-student daily new-card target.
+         */
+        StudentUpdate: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Timezone */
+            timezone?: string | null;
+            /** Daily New Target */
+            daily_new_target?: number | null;
         };
         /**
          * TokenResponse
@@ -643,6 +1033,112 @@ export interface operations {
             };
         };
     };
+    review_due_review_due_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewCardOut"][];
+                };
+            };
+        };
+    };
+    review_grade_review_grade_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GradeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_quiz_quiz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizQuestion"][];
+                };
+            };
+        };
+    };
+    answer_quiz_quiz_answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuizAnswerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizAnswerOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     my_streak_me_streak_get: {
         parameters: {
             query?: never;
@@ -782,6 +1278,171 @@ export interface operations {
             };
         };
     };
+    delete_card_admin_cards__card_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_card_admin_cards__card_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enrich_admin_enrich_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrichRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrichmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enrich_bulk_admin_enrich_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkEnrichRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkEnrichItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_student_admin_students__student_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     assign_deck_admin_assignments_post: {
         parameters: {
             query?: never;
@@ -802,6 +1463,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssignmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_deck_to_class_admin_assignments_class_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassAssignmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentOut"][];
                 };
             };
             /** @description Validation Error */

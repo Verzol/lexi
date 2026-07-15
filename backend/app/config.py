@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     # CORS — the frontend origin(s) only, never "*".
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # AI enrichment (vocab/enrichment.py). The key stays server-side; enrichment
+    # sends only the vocabulary term, never student data. Model is configurable so
+    # it can be swapped (Opus/Sonnet) without a code change. If the key is unset,
+    # the enrichment endpoints return 503 rather than crashing the app.
+    anthropic_api_key: str | None = None
+    enrichment_model: str = "claude-haiku-4-5"
+
     # Seeded on first migration so the teacher can log in.
     seed_admin_email: str = "teacher@lexi.app"
     seed_admin_password: str = "changeme"

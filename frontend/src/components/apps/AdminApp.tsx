@@ -1,5 +1,6 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +9,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { StatTile } from "@/components/ui/StatTile";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { admin, ApiError, type Deck, type UserOut } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 /**
@@ -25,47 +27,39 @@ const STUDENTS = [
   { name: "Thao Bui", streak: 21, last: "today", due: 2, week: 51, acc: 95, slip: false },
 ];
 
-const SAMPLE: Record<string, { ipa: string; meaning: string; example: string }> = {
-  ambitious: {
-    ipa: "æmˈbɪʃəs",
-    meaning: "having a strong desire to succeed or achieve something",
-    example: "She's ambitious about passing the entrance exam this year.",
-  },
-  pragmatic: {
-    ipa: "præɡˈmætɪk",
-    meaning: "dealing with things sensibly and realistically",
-    example: "Take a pragmatic approach: review a little every day.",
-  },
-};
-
 type View = "dashboard" | "decks" | "students";
 
-function Field({
+/** A labeled, editable field — the teacher reviews and edits every draft here
+ * before it saves (nothing from the AI path auto-persists). */
+function EditField({
   label,
   value,
-  serif,
+  onChange,
   mono,
-  italic,
+  multiline,
+  placeholder,
 }: {
   label: string;
   value: string;
-  serif?: boolean;
+  onChange: (v: string) => void;
   mono?: boolean;
-  italic?: boolean;
+  multiline?: boolean;
+  placeholder?: string;
 }) {
+  const cls = `w-full rounded-md border border-border bg-surface px-3 py-2 text-ink outline-none focus:border-pen ${
+    mono ? "font-mono text-sm" : "font-body text-[15px]"
+  }`;
   return (
-    <div className="rounded-md border border-border bg-surface px-3.5 py-2.5">
+    <label className="block">
       <span className="mb-1 block font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
         {label}
       </span>
-      <span
-        className={`${mono ? "font-mono text-sm" : serif ? "font-body text-[15px]" : "font-display text-[15px]"} ${
-          italic ? "italic" : ""
-        } text-ink`}
-      >
-        {value}
-      </span>
-    </div>
+      {multiline ? (
+        <textarea rows={2} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cls} />
+      ) : (
+        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cls} />
+      )}
+    </label>
   );
 }
 
@@ -257,33 +251,228 @@ function Dashboard({ onAddVocab }: { onAddVocab: () => void }) {
   );
 }
 
-function AddVocab() {
-  const [term, setTerm] = useState("");
-  const [enriched, setEnriched] = useState<{ ipa: string; meaning: string; example: string } | null>(null);
-  const [loading, setLoading] = useState(false);
+const EMPTY_DRAFT = { term: "", meaning: "", ipa: "", example_sentence: "" };
+type Draft = typeof EMPTY_DRAFT;
 
-  function enrich() {
-    if (!term.trim()) return;
-    setLoading(true);
-    setEnriched(null);
-    setTimeout(() => {
-      const key = term.trim().toLowerCase();
-      setEnriched(
-        SAMPLE[key] ?? {
-          ipa: "prəˈvɪʒn(ə)l",
-          meaning: "arranged or existing for the present, possibly to be changed later",
-          example: `The teacher reviews every ${term.trim()} before it is saved.`,
-        }
-      );
-      setLoading(false);
-    }, 900);
+/** Deck selector + inline "new deck" create. The card being added always lands
+ * in exactly one deck, so the teacher must have one selected before saving. */
+function DeckBar({
+  decks,
+  value,
+  onChange,
+}: {
+  decks: Deck[];
+  value: number | null;
+  onChange: (id: number) => void;
+}) {
+  const qc = useQueryClient();
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [examTag, setExamTag] = useState("");
+
+  const create = useMutation({
+    mutationFn: () => admin.createDeck({ name: name.trim(), exam_tag: examTag.trim() || undefined }),
+    onSuccess: (deck) => {
+      qc.invalidateQueries({ queryKey: ["admin-decks"] });
+      onChange(deck.id);
+      setCreating(false);
+      setName("");
+      setExamTag("");
+    },
+  });
+
+  if (creating) {
+    return (
+      <div className="mb-4 flex flex-wrap items-end gap-2">
+        <EditField label="Deck name" value={name} onChange={setName} placeholder="e.g. Entrance Exam — Core 300" />
+        <EditField label="Exam tag" value={examTag} onChange={setExamTag} mono placeholder="grade-10-entrance" />
+        <Button variant="primary" onClick={() => create.mutate()} disabled={!name.trim() || create.isPending}>
+          {create.isPending ? "Creating…" : "Create deck"}
+        </Button>
+        <Button variant="ghost" onClick={() => setCreating(false)}>
+          Cancel
+        </Button>
+      </div>
+    );
   }
+
+  return (
+    <label className="mb-4 block">
+      <span className="mb-1 block font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        Adding to deck
+      </span>
+      <div className="flex gap-2">
+        <select
+          value={value ?? ""}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="h-10 flex-1 rounded-md border border-border bg-surface px-3 font-body text-[15px] text-ink outline-none focus:border-pen"
+        >
+          {decks.length === 0 ? <option value="">No decks yet — create one</option> : null}
+          {decks.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+              {d.exam_tag ? ` · ${d.exam_tag}` : ""}
+            </option>
+          ))}
+        </select>
+        <Button variant="secondary" onClick={() => setCreating(true)}>
+          New deck
+        </Button>
+      </div>
+    </label>
+  );
+}
+
+/** After a card is saved, the teacher pushes the deck to students. Whole-class or
+ * one student, with an optional daily new-card target (blank = student default). */
+function AssignPanel({ deckId }: { deckId: number | null }) {
+  const studentsQuery = useQuery({ queryKey: ["admin-students"], queryFn: admin.students });
+  const students = studentsQuery.data ?? [];
+  const [target, setTarget] = useState("");
+  const [note, setNote] = useState<string | null>(null);
+
+  const parsedTarget = target.trim() ? Number(target) : null;
+
+  const assignClass = useMutation({
+    mutationFn: () => admin.assignClass(deckId!, parsedTarget),
+    onSuccess: (rows) => setNote(`Assigned to ${rows.length} student${rows.length === 1 ? "" : "s"}.`),
+  });
+  const assignOne = useMutation({
+    mutationFn: (studentId: number) => admin.assign(studentId, deckId!, parsedTarget),
+    onSuccess: (_r, studentId) =>
+      setNote(`Assigned to ${students.find((s) => s.id === studentId)?.display_name ?? "student"}.`),
+  });
+
+  const busy = assignClass.isPending || assignOne.isPending;
+  const err = (assignClass.error ?? assignOne.error) as ApiError | null;
+
+  return (
+    <div className="mt-[18px] rounded-md border border-border bg-surface p-4 shadow-sm">
+      <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        Assign this deck
+      </p>
+
+      <div className="mb-3 flex items-end gap-2">
+        <div className="w-28">
+          <EditField
+            label="Daily target"
+            value={target}
+            onChange={setTarget}
+            mono
+            placeholder="default"
+          />
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={deckId == null || busy}
+          onClick={() => {
+            setNote(null);
+            assignClass.mutate();
+          }}
+        >
+          Whole class
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {studentsQuery.isPending ? (
+          <span className="font-body text-[13px] text-ink-faint">Loading students…</span>
+        ) : students.length === 0 ? (
+          <span className="font-body text-[13px] text-ink-faint">No students yet.</span>
+        ) : (
+          students.map((s) => (
+            <button
+              key={s.id}
+              disabled={deckId == null || busy}
+              onClick={() => {
+                setNote(null);
+                assignOne.mutate(s.id);
+              }}
+              className="rounded-full border border-border bg-surface px-2.5 py-1 font-mono text-[10.5px] font-semibold uppercase tracking-wider text-ink-soft hover:border-pen hover:text-pen disabled:opacity-40"
+            >
+              {s.display_name.split(" ")[0]}
+            </button>
+          ))
+        )}
+      </div>
+
+      {note ? <p className="mt-2.5 font-body text-[13px] text-check">{note}</p> : null}
+      {err ? (
+        <p role="alert" className="mt-2.5 font-body text-[13px] text-correction">
+          Couldn&rsquo;t assign — {err.message}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Fast add (SoW §4, the <10s/word loop): pick a deck, type a term, let AI draft
+ * meaning/IPA/example, edit, save. AI is a convenience — if enrichment is
+ * unavailable (no key → 503) the teacher just fills the fields by hand. Nothing
+ * from the AI path auto-saves; the teacher approves every card.
+ */
+function AddVocab() {
+  const qc = useQueryClient();
+  const decksQuery = useQuery({ queryKey: ["admin-decks"], queryFn: admin.decks });
+  const decks = decksQuery.data ?? [];
+
+  const [pickedDeck, setPickedDeck] = useState<number | null>(null);
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [source, setSource] = useState<"manual" | "ai-enriched">("manual");
+  const [saved, setSaved] = useState<string | null>(null);
+
+  // Default to the first deck until the teacher picks another.
+  const deckId = pickedDeck ?? decks[0]?.id ?? null;
+  const deck = decks.find((d) => d.id === deckId) ?? null;
+
+  const enrich = useMutation({
+    mutationFn: (term: string) => admin.enrich(term),
+    onSuccess: (r) => {
+      setDraft({ term: r.term, meaning: r.meaning, ipa: r.ipa, example_sentence: r.example_sentence });
+      setSource("ai-enriched");
+    },
+  });
+
+  const save = useMutation({
+    mutationFn: () =>
+      admin.createCard(deckId!, {
+        term: draft.term.trim(),
+        meaning: draft.meaning.trim(),
+        ipa: draft.ipa.trim() || null,
+        example_sentence: draft.example_sentence.trim() || null,
+        source,
+      }),
+    onSuccess: (card) => {
+      qc.invalidateQueries({ queryKey: ["admin-decks"] });
+      qc.invalidateQueries({ queryKey: ["admin-cards", deckId] });
+      setSaved(`Saved “${card.term}”.`);
+      setDraft(EMPTY_DRAFT);
+      setSource("manual");
+      enrich.reset();
+    },
+  });
+
+  function set(field: keyof Draft, v: string) {
+    setDraft((d) => ({ ...d, [field]: v }));
+    setSaved(null);
+  }
+
+  function runEnrich() {
+    if (!draft.term.trim()) return;
+    setSaved(null);
+    enrich.mutate(draft.term.trim());
+  }
+
+  const enrichUnavailable = enrich.error instanceof ApiError && enrich.error.status === 503;
+  const canSave = deckId != null && draft.term.trim() !== "" && draft.meaning.trim() !== "" && !save.isPending;
 
   return (
     <div className="grid w-full gap-7 overflow-y-auto p-4 sm:p-7 lg:grid-cols-2">
       <div>
         <p className="m-0 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-          Entrance Exam — Core 300
+          {deck?.exam_tag ?? deck?.name ?? "Fast add"}
         </p>
         <h1 className="mt-1 mb-1.5 font-display text-[26px] font-extrabold tracking-tight text-ink">Fast add</h1>
         <p className="mb-[18px] max-w-[42ch] font-body text-[15px] text-ink-soft">
@@ -291,53 +480,67 @@ function AddVocab() {
           nothing auto-publishes.
         </p>
 
+        <DeckBar decks={decks} value={deckId} onChange={setPickedDeck} />
+
         <div className="mb-4 flex gap-2">
           <input
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && enrich()}
+            value={draft.term}
+            onChange={(e) => set("term", e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runEnrich()}
             placeholder="e.g. ambitious"
-            className="h-11 flex-1 rounded-md border border-border bg-surface px-3.5 font-display text-[15px] text-ink outline-none"
+            className="h-11 flex-1 rounded-md border border-border bg-surface px-3.5 font-display text-[15px] text-ink outline-none focus:border-pen"
           />
-          <Button variant="primary" onClick={enrich} disabled={loading}>
-            {loading ? "Enriching…" : "Enrich"}
+          <Button variant="primary" onClick={runEnrich} disabled={!draft.term.trim() || enrich.isPending}>
+            {enrich.isPending ? "Enriching…" : "Enrich"}
           </Button>
         </div>
 
-        {enriched ? (
-          <div className="flex flex-col gap-3">
-            <Field label="Meaning" value={enriched.meaning} serif />
-            <Field label="IPA" value={`/${enriched.ipa}/`} mono />
-            <Field label="Example" value={enriched.example} serif italic />
-            <div className="mt-1 flex gap-2">
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setEnriched(null);
-                  setTerm("");
-                }}
-              >
-                Save card
-              </Button>
-              <Button variant="secondary" onClick={enrich}>
+        {enrichUnavailable ? (
+          <p className="mb-3 rounded-md border border-border bg-surface px-3.5 py-2.5 font-body text-[13px] text-ink-soft">
+            AI enrichment is off (no API key on the server). You can still fill the fields below by hand and save.
+          </p>
+        ) : enrich.isError ? (
+          <p role="alert" className="mb-3 font-body text-[13px] text-correction">
+            Couldn&rsquo;t draft this word — {(enrich.error as Error).message}
+          </p>
+        ) : null}
+
+        <div className="flex flex-col gap-3">
+          <EditField label="Meaning" value={draft.meaning} onChange={(v) => set("meaning", v)} multiline placeholder="a concise, learner-friendly definition" />
+          <EditField label="IPA" value={draft.ipa} onChange={(v) => set("ipa", v)} mono placeholder="æmˈbɪʃəs" />
+          <EditField label="Example" value={draft.example_sentence} onChange={(v) => set("example_sentence", v)} multiline placeholder="a natural sentence using the word" />
+
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <Button variant="primary" onClick={() => save.mutate()} disabled={!canSave}>
+              {save.isPending ? "Saving…" : "Save card"}
+            </Button>
+            {source === "ai-enriched" ? (
+              <Button variant="secondary" onClick={runEnrich} disabled={enrich.isPending}>
                 Regenerate
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setEnriched(null);
-                  setTerm("");
-                }}
-              >
-                Discard
-              </Button>
-            </div>
+            ) : null}
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDraft(EMPTY_DRAFT);
+                setSource("manual");
+                setSaved(null);
+                enrich.reset();
+              }}
+            >
+              Clear
+            </Button>
+            {saved ? <span className="font-body text-[13px] text-check">{saved}</span> : null}
+            {save.isError ? (
+              <span role="alert" className="font-body text-[13px] text-correction">
+                {(save.error as Error).message}
+              </span>
+            ) : null}
           </div>
-        ) : (
-          <p className="font-body text-sm italic text-ink-faint">
-            {loading ? "Asking the model…" : "Draft appears here for your review."}
-          </p>
-        )}
+          {deckId == null ? (
+            <p className="font-body text-[13px] italic text-ink-faint">Create or pick a deck to save into.</p>
+          ) : null}
+        </div>
       </div>
 
       <div>
@@ -345,36 +548,112 @@ function AddVocab() {
           Live preview
         </p>
         <Flashcard
-          tag={<Badge tone="pen">grade-10-entrance</Badge>}
-          term={term.trim() || "ambitious"}
-          ipa={enriched ? enriched.ipa : "æmˈbɪʃəs"}
-          meaning={enriched ? enriched.meaning : "having a strong desire to succeed or achieve something"}
-          example={enriched ? enriched.example : "She's ambitious about passing the entrance exam this year."}
+          tag={deck?.exam_tag ? <Badge tone="pen">{deck.exam_tag}</Badge> : undefined}
+          term={draft.term.trim() || "ambitious"}
+          ipa={draft.ipa.trim() || (draft.term ? undefined : "æmˈbɪʃəs")}
+          meaning={draft.meaning.trim() || "having a strong desire to succeed or achieve something"}
+          example={draft.example_sentence.trim() || (draft.term ? undefined : "She's ambitious about passing the entrance exam this year.")}
         />
-        <div className="mt-[18px] rounded-md border border-border bg-surface p-4 shadow-sm">
-          <p className="mb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-            Assign to
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            <Badge tone="pen">whole class</Badge>
-            <Badge tone="neutral">Mai</Badge>
-            <Badge tone="neutral">Duc</Badge>
-            <Badge tone="neutral">+9</Badge>
-          </div>
-          <p className="mt-3 font-body text-[13px] text-ink-soft">
-            Daily new-card target: <b className="font-mono">10</b>/student
-          </p>
-        </div>
+        <AssignPanel deckId={deckId} />
       </div>
     </div>
   );
 }
 
+/** Roster + per-student daily new-card target (SoW §4 curriculum control).
+ * Accounts are teacher-created; no self-signup, so this is read + tune, not add. */
 function Students() {
+  const qc = useQueryClient();
+  const studentsQuery = useQuery({ queryKey: ["admin-students"], queryFn: admin.students });
+  const students = studentsQuery.data ?? [];
+
+  const update = useMutation({
+    mutationFn: (v: { id: number; daily_new_target: number }) =>
+      admin.updateStudent(v.id, { daily_new_target: v.daily_new_target }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-students"] }),
+  });
+
   return (
-    <div className="flex w-full items-center justify-center p-7 font-body text-sm italic text-ink-faint">
-      Roster management — teacher-created accounts (no self-signup). Placeholder view.
+    <div className="w-full overflow-y-auto p-4 sm:p-7">
+      <p className="m-0 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        Teacher-created accounts · no self-signup
+      </p>
+      <h1 className="mt-1 mb-5 font-display text-[26px] font-extrabold tracking-tight text-ink">Students</h1>
+
+      {studentsQuery.isPending ? (
+        <p className="font-body text-sm text-ink-soft">Loading roster…</p>
+      ) : studentsQuery.isError ? (
+        <p role="alert" className="font-body text-sm text-correction">
+          Couldn&rsquo;t load students — {(studentsQuery.error as Error).message}
+        </p>
+      ) : students.length === 0 ? (
+        <p className="font-body text-sm text-ink-soft">No students yet.</p>
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+          <table className="w-full min-w-[520px] border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                {["Student", "Email", "Daily new target", ""].map((h, i) => (
+                  <th
+                    key={i}
+                    className={`px-4 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-faint ${
+                      i === 0 ? "text-left" : "text-left"
+                    }`}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((s) => (
+                <StudentRow
+                  key={s.id}
+                  student={s}
+                  onSave={(target) => update.mutate({ id: s.id, daily_new_target: target })}
+                  saving={update.isPending && update.variables?.id === s.id}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
+  );
+}
+
+/** One roster row — a local, editable copy of the daily target committed on Save. */
+function StudentRow({
+  student,
+  onSave,
+  saving,
+}: {
+  student: UserOut;
+  onSave: (target: number) => void;
+  saving: boolean;
+}) {
+  const [target, setTarget] = useState(String(student.daily_new_target));
+  const dirty = target.trim() !== "" && Number(target) !== student.daily_new_target;
+
+  return (
+    <tr className="border-b border-grid-line">
+      <td className="px-4 py-2.5 font-display text-sm font-semibold text-ink">{student.display_name}</td>
+      <td className="px-4 py-2.5 font-mono text-xs text-ink-soft">{student.email}</td>
+      <td className="px-4 py-2.5">
+        <input
+          type="number"
+          min={0}
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          className="h-8 w-20 rounded-md border border-border bg-surface px-2 font-mono text-[13px] text-ink outline-none focus:border-pen"
+        />
+      </td>
+      <td className="px-4 py-2.5">
+        <Button variant="secondary" size="sm" disabled={!dirty || saving} onClick={() => onSave(Number(target))}>
+          {saving ? "Saving…" : "Save"}
+        </Button>
+      </td>
+    </tr>
   );
 }
 

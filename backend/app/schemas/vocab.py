@@ -51,9 +51,62 @@ class CardCreate(BaseModel):
     source: CardSource = CardSource.manual
 
 
+class CardUpdate(BaseModel):
+    """Partial edit of a card. Any field left unset is untouched; setting
+    `deck_id` moves the card to another deck."""
+
+    term: str | None = None
+    meaning: str | None = None
+    ipa: str | None = None
+    example_sentence: str | None = None
+    deck_id: int | None = None
+
+
+class EnrichRequest(BaseModel):
+    term: str
+
+
+class EnrichmentOut(BaseModel):
+    """An AI-drafted card the teacher reviews before saving — nothing persisted."""
+
+    term: str
+    meaning: str
+    ipa: str
+    example_sentence: str
+
+
+class BulkEnrichRequest(BaseModel):
+    terms: list[str]
+
+
+class BulkEnrichItem(BaseModel):
+    """One row of a paste-a-list enrichment: a draft, or an error for that term."""
+
+    term: str
+    meaning: str | None = None
+    ipa: str | None = None
+    example_sentence: str | None = None
+    error: str | None = None
+
+
 class AssignmentCreate(BaseModel):
     student_id: int
     deck_id: int
+    daily_new_target: int | None = None
+
+
+class ClassAssignmentCreate(BaseModel):
+    """Assign a deck to every student at once (SoW §4 whole-class control)."""
+
+    deck_id: int
+    daily_new_target: int | None = None
+
+
+class StudentUpdate(BaseModel):
+    """Teacher edits to a student — notably the per-student daily new-card target."""
+
+    display_name: str | None = None
+    timezone: str | None = None
     daily_new_target: int | None = None
 
 
