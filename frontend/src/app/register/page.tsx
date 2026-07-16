@@ -8,31 +8,38 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
-function homeFor(role: string): string {
-  return role === "admin" ? "/admin" : "/student";
-}
+const FIELD =
+  "h-11 rounded-md border border-border bg-surface px-3.5 font-display text-[15px] text-ink outline-none focus-visible:border-pen focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-pen";
+const LABEL =
+  "font-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-faint";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
-  const { user, loading, login } = useAuth();
+  const { user, loading, register } = useAuth();
 
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Already signed in (e.g. the refresh cookie was still good) — don't make them log in again.
+  // Already signed in — send them on rather than showing the form again.
   useEffect(() => {
-    if (!loading && user) router.replace(homeFor(user.role));
+    if (!loading && user) router.replace(user.role === "admin" ? "/admin" : "/student");
   }, [loading, user, router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
     setSubmitting(true);
     try {
-      const signedIn = await login(email, password);
-      router.replace(homeFor(signedIn.role));
+      await register({ email, display_name: displayName, password });
+      // Self-signup always creates a student.
+      router.replace("/student");
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Could not reach the server. Is the API running?"
@@ -52,40 +59,51 @@ export default function LoginPage() {
             <ThemeToggle />
           </div>
           <h1 className="mt-4 font-display text-xl font-bold tracking-tight text-ink">
-            Sign in to keep your streak
+            Start your streak
           </h1>
           <p className="mt-1 font-body text-[15px] text-ink-soft">
-            Use your own account, or the email your teacher gave you.
+            Create an account to build your own vocabulary. Your teacher can add you to a class
+            later.
           </p>
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-              Email
-            </span>
+            <span className={LABEL}>Name</span>
+            <input
+              type="text"
+              required
+              autoComplete="name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className={FIELD}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className={LABEL}>Email</span>
             <input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-11 rounded-md border border-border bg-surface px-3.5 font-display text-[15px] text-ink outline-none focus-visible:border-pen focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-pen"
+              className={FIELD}
             />
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-              Password
-            </span>
+            <span className={LABEL}>Password</span>
             <input
               type="password"
               required
-              autoComplete="current-password"
+              minLength={8}
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 rounded-md border border-border bg-surface px-3.5 font-display text-[15px] text-ink outline-none focus-visible:border-pen focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-pen"
+              className={FIELD}
             />
+            <span className="font-body text-[12.5px] text-ink-faint">At least 8 characters.</span>
           </label>
 
           {error ? (
@@ -98,14 +116,14 @@ export default function LoginPage() {
           ) : null}
 
           <Button type="submit" disabled={submitting} className="mt-1 h-11 w-full">
-            {submitting ? "Signing in…" : "Sign in"}
+            {submitting ? "Creating account…" : "Create account"}
           </Button>
         </form>
 
         <p className="mt-5 text-center font-body text-sm text-ink-soft">
-          New here?{" "}
-          <Link href="/register" className="font-semibold text-pen hover:underline">
-            Create an account
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-pen hover:underline">
+            Sign in
           </Link>
         </p>
       </div>

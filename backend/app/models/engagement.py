@@ -17,6 +17,9 @@ class Streak(Base):
     # Stored as a plain date in the student's own timezone.
     last_completed_date: Mapped[date | None] = mapped_column(Date)
     freezes_remaining: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    # The last local day we sent this student a reminder — guards the daily job
+    # against sending twice (e.g. after a restart within the reminder hour).
+    last_reminded_date: Mapped[date | None] = mapped_column(Date)
 
     student = relationship("User", back_populates="streak")
 

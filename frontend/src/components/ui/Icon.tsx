@@ -8,8 +8,12 @@ import type { CSSProperties } from "react";
 const PATHS: Record<string, string> = {
   flame:
     "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z",
+  snowflake:
+    "M2 12h20|M12 2v20|m20 16-4-4 4-4|m4 8 4 4-4 4|m16 4-4 4-4-4|m8 20 4-4 4 4",
   check: "M20 6 9 17l-5-5",
   x: "M18 6 6 18M6 6l12 12",
+  plus: "M5 12h14|M12 5v14",
+  trash: "M3 6h18|M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2|M10 11v6|M14 11v6",
   chevronLeft: "m15 18-6-6 6-6",
   arrowRight: "M5 12h14M12 5l7 7-7 7",
   clock: "M12 6v6l4 2",

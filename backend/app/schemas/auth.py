@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.models.enums import UserRole
 
@@ -6,6 +6,16 @@ from app.models.enums import UserRole
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class RegisterRequest(BaseModel):
+    """Public self-signup — always creates a `student`. Role can't be chosen here;
+    teacher accounts are still provisioned out-of-band."""
+
+    email: EmailStr
+    display_name: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=8, max_length=128)
+    timezone: str = "Asia/Ho_Chi_Minh"
 
 
 class UserOut(BaseModel):

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.enums import CardSource
 
@@ -30,10 +30,16 @@ class DeckOut(BaseModel):
 
 
 class AssignedDeckOut(DeckOut):
-    """A deck as a student sees it — with their own due count folded in."""
+    """A deck as a student sees it — with their own due count folded in.
+
+    `owned` is True for a personal deck the student authored themselves, False
+    for a teacher-assigned ("class") deck — the student can edit the former and
+    only study the latter.
+    """
 
     due_count: int
     card_count: int
+    owned: bool
 
 
 class DeckCreate(BaseModel):
@@ -41,6 +47,29 @@ class DeckCreate(BaseModel):
     description: str | None = None
     exam_tag: str | None = None
     topic_tags: list[str] = []
+
+
+class PersonalDeckCreate(BaseModel):
+    """A student authoring their own deck — no exam_tag/topic_tags, which are
+    teacher-curriculum concepts."""
+
+    name: str = Field(min_length=1, max_length=160)
+    description: str | None = None
+
+
+class PersonalDeckUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = None
+
+
+class StudentCardUpdate(BaseModel):
+    """Partial edit of a card in the student's OWN deck. No `deck_id`: a student
+    can't move a card between decks (that could target a teacher's deck)."""
+
+    term: str | None = None
+    meaning: str | None = None
+    ipa: str | None = None
+    example_sentence: str | None = None
 
 
 class CardCreate(BaseModel):

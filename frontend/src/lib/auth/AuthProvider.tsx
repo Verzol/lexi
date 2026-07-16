@@ -13,6 +13,12 @@ type AuthState = {
   /** True until the initial silent-refresh has settled, so we don't flash the login screen. */
   loading: boolean;
   login: (email: string, password: string) => Promise<UserOut>;
+  register: (body: {
+    email: string;
+    display_name: string;
+    password: string;
+    timezone?: string;
+  }) => Promise<UserOut>;
   logout: () => Promise<void>;
 };
 
@@ -45,6 +51,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return res.user;
   }, []);
 
+  const register = useCallback<AuthState["register"]>(async (body) => {
+    // Registration returns the same token payload as login, so we're signed in
+    // immediately — no separate login round-trip.
+    const res = await authApi.register(body);
+    setAccessToken(res.access_token);
+    setUser(res.user);
+    return res.user;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -55,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -15,7 +15,11 @@ A web app where students study English **between lessons** while the teacher con
 | **Student** | ~12 learners | "Tell me what to review today, let me finish in a few minutes." |
 | **Admin/Teacher** | Verzol | "Push the right content to each student, see who's keeping up." |
 
-No self-signup — teacher creates every account. Keeps auth/moderation/privacy trivial.
+Students **self-register** (public signup → always a `student`); the teacher no
+longer provisions every account. "Being in a class" is still teacher-controlled —
+membership means the teacher has assigned you their decks — and a self-registered
+student can also author **their own personal vocab** to study alongside class
+decks. (This revises the original "no self-signup" call; see the note under §5.)
 
 ## 3. The Core Loop
 
@@ -47,7 +51,7 @@ Deferred deliberately, not forgotten:
 
 - Document/content library (use a shared folder/linked page instead)
 - Full mock-exam simulator, quest generation
-- Public sign-up / multi-teacher support
+- ~~Public sign-up~~ / multi-teacher support — **public self-signup was pulled into scope** (see §2). Multi-teacher support stays deferred. Deferred hardening still owed on the signup path: **email verification** and **rate limiting** (the endpoint has neither yet)
 - Native iOS/Android apps (PWA install prompt only)
 - Gamification beyond streaks (no leaderboards/XP/badges)
 - Payments/monetization

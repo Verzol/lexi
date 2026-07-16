@@ -15,6 +15,7 @@ import {
   decks as decksApi,
   quiz as quizApi,
   review as reviewApi,
+  type AssignedDeck,
   type QuizAnswerResult,
   type QuizKind,
 } from "@/lib/api/client";
@@ -35,7 +36,7 @@ type Streak = { current_streak: number; longest_streak: number; freezes_remainin
 /** What the quiz reports back to the session when it finishes. */
 type QuizStats = { correct: number; total: number; elapsedMs: number };
 
-type Screen = "home" | "review" | "quiz" | "done";
+type Screen = "home" | "review" | "quiz" | "done" | "vocab";
 
 /** Format a duration in ms as `m:ss`. */
 function clock(ms: number): string {
@@ -53,6 +54,34 @@ function useSessionTimer(): number {
     return () => clearInterval(id);
   }, []);
   return elapsed;
+}
+
+/**
+ * Streak freezes (M5): each banked freeze silently covers one missed day so a
+ * single skip doesn't reset the streak. Shown so the student knows the safety
+ * net exists — and that it's finite.
+ */
+function FreezeChip({ count }: { count: number }) {
+  const pips = Math.max(count, 1); // always draw at least one glyph to anchor the row
+  return (
+    <div className="flex items-center gap-2.5 rounded-md border border-border bg-surface px-3.5 py-2.5 shadow-sm">
+      <span className="flex items-center gap-0.5 text-pen">
+        {Array.from({ length: pips }).map((_, i) => (
+          <Icon
+            key={i}
+            name="snowflake"
+            size={15}
+            style={count === 0 ? { opacity: 0.3 } : undefined}
+          />
+        ))}
+      </span>
+      <span className="font-body text-[13px] text-ink-soft">
+        {count > 0
+          ? `${count} streak ${count === 1 ? "freeze" : "freezes"} — each covers a missed day.`
+          : "No freezes left — review today to keep your streak."}
+      </span>
+    </div>
+  );
 }
 
 /** "3 cards due — about two minutes." Sell the session small; ~25s a card. */
@@ -116,7 +145,7 @@ function Content({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Home({ onReview }: { onReview: () => void }) {
+function Home({ onReview, onManageVocab }: { onReview: () => void; onManageVocab: () => void }) {
   const { user } = useAuth();
 
   const decksQuery = useQuery({ queryKey: ["decks"], queryFn: decksApi.listMine });
@@ -126,9 +155,13 @@ function Home({ onReview }: { onReview: () => void }) {
   });
 
   const myDecks = decksQuery.data ?? [];
+  const classDecks = myDecks.filter((d) => !d.owned);
+  const personalDecks = myDecks.filter((d) => d.owned);
   const totalDue = myDecks.reduce((sum, d) => sum + d.due_count, 0);
   const totalCards = myDecks.reduce((sum, d) => sum + d.card_count, 0);
   const streak = streakQuery.data?.current_streak ?? 0;
+  const longest = streakQuery.data?.longest_streak ?? 0;
+  const freezes = streakQuery.data?.freezes_remaining ?? 0;
   const firstName = user?.display_name.split(" ")[0] ?? "there";
 
   return (
@@ -167,7 +200,7 @@ function Home({ onReview }: { onReview: () => void }) {
           <StatTile
             label="Streak"
             value={String(streak)}
-            hint={streak === 1 ? "day" : "days"}
+            hint={longest > streak ? `best ${longest}` : streak === 1 ? "day" : "days"}
             tone={streak > 0 ? "check" : "default"}
           />
           <StatTile
@@ -178,6 +211,8 @@ function Home({ onReview }: { onReview: () => void }) {
           />
           <StatTile label="Assigned" value={String(totalCards)} hint="cards" />
         </div>
+
+        {streakQuery.isSuccess ? <FreezeChip count={freezes} /> : null}
 
         <button
           onClick={onReview}
@@ -193,42 +228,84 @@ function Home({ onReview }: { onReview: () => void }) {
 
         <div>
           <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-            Assigned to you
+            Class decks
           </p>
 
-          {!decksQuery.isPending && myDecks.length === 0 ? (
+          {!decksQuery.isPending && classDecks.length === 0 ? (
             <div className="rounded-md border border-border bg-surface px-3.5 py-4 font-body text-sm text-ink-soft shadow-sm">
-              No decks yet. Your teacher will assign one after your next lesson.
+              No class decks yet. Your teacher will assign one after your next lesson.
             </div>
           ) : (
-            // One column on a phone; two side by side once there is room.
             <div className="grid gap-2 sm:grid-cols-2">
-              {myDecks.map((d) => (
-                <div
-                  key={d.id}
-                  className="flex items-center gap-3 rounded-md border border-border bg-surface px-3.5 py-3 shadow-sm"
-                >
-                  <span className="text-ink-faint">
-                    <Icon name="layers" size={20} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-display text-sm font-semibold text-ink">
-                      {d.name}
-                    </div>
-                    <div className="mt-0.5 font-mono text-[10.5px] uppercase tracking-wider text-ink-faint">
-                      {d.exam_tag ?? `${d.card_count} cards`}
-                    </div>
-                  </div>
-                  <Badge tone={d.due_count ? "correction" : "check"}>
-                    {d.due_count ? `${d.due_count} due` : "done"}
-                  </Badge>
-                </div>
+              {classDecks.map((d) => (
+                <DeckRow key={d.id} deck={d} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+              My vocabulary
+            </p>
+            <button
+              onClick={onManageVocab}
+              className="flex items-center gap-1 border-0 bg-transparent p-0 font-display text-[13px] font-semibold text-pen hover:underline"
+            >
+              <Icon name="plus" size={15} />
+              Add &amp; manage
+            </button>
+          </div>
+
+          {personalDecks.length === 0 ? (
+            <button
+              onClick={onManageVocab}
+              className="flex w-full items-center gap-3 rounded-md border border-dashed border-border bg-surface px-3.5 py-4 text-left font-body text-sm text-ink-soft shadow-sm hover:border-pen hover:text-ink"
+            >
+              <Icon name="plus" size={18} />
+              Add your own words — build a personal deck to study alongside class decks.
+            </button>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {personalDecks.map((d) => (
+                <DeckRow key={d.id} deck={d} onClick={onManageVocab} />
               ))}
             </div>
           )}
         </div>
       </Content>
     </div>
+  );
+}
+
+/** One deck row on Home. Optional `onClick` makes it a button (personal decks
+ * jump into the authoring screen); class decks are static. */
+function DeckRow({ deck, onClick }: { deck: AssignedDeck; onClick?: () => void }) {
+  const inner = (
+    <>
+      <span className="text-ink-faint">
+        <Icon name="layers" size={20} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-display text-sm font-semibold text-ink">{deck.name}</div>
+        <div className="mt-0.5 font-mono text-[10.5px] uppercase tracking-wider text-ink-faint">
+          {deck.exam_tag ?? `${deck.card_count} ${deck.card_count === 1 ? "card" : "cards"}`}
+        </div>
+      </div>
+      <Badge tone={deck.due_count ? "correction" : "check"}>
+        {deck.due_count ? `${deck.due_count} due` : "done"}
+      </Badge>
+    </>
+  );
+  const cls =
+    "flex w-full items-center gap-3 rounded-md border border-border bg-surface px-3.5 py-3 text-left shadow-sm";
+  return onClick ? (
+    <button onClick={onClick} className={`${cls} hover:border-pen`}>
+      {inner}
+    </button>
+  ) : (
+    <div className={cls}>{inner}</div>
   );
 }
 
@@ -675,7 +752,10 @@ function Done({
     queryFn: () => api<Streak>("/me/streak"),
   });
   const streak = streakQuery.data?.current_streak ?? 0;
+  const longest = streakQuery.data?.longest_streak ?? 0;
+  const freezes = streakQuery.data?.freezes_remaining ?? 0;
   const cards = reviewed === 1 ? "card" : "cards";
+  const isBest = streak > 0 && streak >= longest;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -691,6 +771,19 @@ function Done({
           <p className="mt-1.5 font-body text-base text-ink-soft">
             Done for today — {reviewed} {cards} reviewed. See you tomorrow.
           </p>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            {isBest && streak > 1 ? (
+              <span className="rounded-full bg-check-soft px-2.5 py-1 font-mono text-[10.5px] font-semibold uppercase tracking-wider text-check">
+                Personal best
+              </span>
+            ) : null}
+            {freezes > 0 ? (
+              <span className="flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1 font-mono text-[10.5px] font-semibold uppercase tracking-wider text-ink-soft">
+                <Icon name="snowflake" size={13} />
+                {freezes} {freezes === 1 ? "freeze" : "freezes"} banked
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="grid w-full max-w-sm grid-cols-3 gap-2.5">
           <StatTile label="Reviewed" value={String(reviewed)} hint="cards" tone="check" />
@@ -710,6 +803,237 @@ function Done({
   );
 }
 
+const VOCAB_INPUT =
+  "h-11 w-full rounded-md border border-border bg-surface px-3.5 font-body text-[15px] text-ink outline-none focus:border-pen";
+const VOCAB_LABEL =
+  "font-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-faint";
+
+/** Add one manually-authored word to a personal deck. AI enrichment is
+ * teacher-only, so this is plain typing — term + meaning required, the rest
+ * optional. Kept as its own component so its fields reset cleanly per add. */
+function AddCardForm({ deckId }: { deckId: number }) {
+  const qc = useQueryClient();
+  const [term, setTerm] = useState("");
+  const [meaning, setMeaning] = useState("");
+  const [ipa, setIpa] = useState("");
+  const [example, setExample] = useState("");
+
+  const add = useMutation({
+    mutationFn: () =>
+      decksApi.addCard(deckId, {
+        term: term.trim(),
+        meaning: meaning.trim(),
+        ipa: ipa.trim() || null,
+        example_sentence: example.trim() || null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["deck-cards", deckId] });
+      qc.invalidateQueries({ queryKey: ["decks"] });
+      setTerm("");
+      setMeaning("");
+      setIpa("");
+      setExample("");
+    },
+  });
+
+  const canAdd = term.trim() !== "" && meaning.trim() !== "" && !add.isPending;
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canAdd) add.mutate();
+      }}
+      className="rounded-lg border border-border bg-surface p-4 shadow-card"
+    >
+      <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        Add a word
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1.5">
+          <span className={VOCAB_LABEL}>Word</span>
+          <input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="serendipity" className={VOCAB_INPUT} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className={VOCAB_LABEL}>IPA (optional)</span>
+          <input value={ipa} onChange={(e) => setIpa(e.target.value)} placeholder="ˌsɛrənˈdɪpɪti" className={`${VOCAB_INPUT} font-mono text-sm`} />
+        </label>
+      </div>
+      <label className="mt-3 flex flex-col gap-1.5">
+        <span className={VOCAB_LABEL}>Meaning</span>
+        <input value={meaning} onChange={(e) => setMeaning(e.target.value)} placeholder="a pleasant surprise" className={VOCAB_INPUT} />
+      </label>
+      <label className="mt-3 flex flex-col gap-1.5">
+        <span className={VOCAB_LABEL}>Example (optional)</span>
+        <textarea value={example} onChange={(e) => setExample(e.target.value)} rows={2} placeholder="A lucky serendipity led her to the answer." className={`${VOCAB_INPUT} h-auto py-2.5`} />
+      </label>
+      <div className="mt-3 flex items-center gap-2">
+        <Button type="submit" variant="primary" disabled={!canAdd}>
+          {add.isPending ? "Adding…" : "Add word"}
+        </Button>
+        {add.isError ? (
+          <span role="alert" className="font-body text-[13px] text-correction">
+            {(add.error as Error).message}
+          </span>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
+/**
+ * "My Vocabulary" — the self-serve authoring screen. A student creates personal
+ * decks and types their own cards (manual only); each personal deck is
+ * self-assigned server-side, so its words flow straight into Review Today
+ * alongside teacher-assigned class decks.
+ */
+function Vocab({ onBack }: { onBack: () => void }) {
+  const qc = useQueryClient();
+  const decksQuery = useQuery({ queryKey: ["decks"], queryFn: decksApi.listMine });
+  const personalDecks = (decksQuery.data ?? []).filter((d) => d.owned);
+
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [newDeckName, setNewDeckName] = useState("");
+  const deckId = selectedId ?? personalDecks[0]?.id ?? null;
+
+  const createDeck = useMutation({
+    mutationFn: (name: string) => decksApi.create({ name }),
+    onSuccess: (deck) => {
+      qc.invalidateQueries({ queryKey: ["decks"] });
+      setSelectedId(deck.id);
+      setNewDeckName("");
+    },
+  });
+
+  const cardsQuery = useQuery({
+    queryKey: ["deck-cards", deckId],
+    queryFn: () => decksApi.cards(deckId as number),
+    enabled: deckId != null,
+  });
+  const removeCard = useMutation({
+    mutationFn: (cardId: number) => decksApi.deleteCard(deckId as number, cardId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["deck-cards", deckId] });
+      qc.invalidateQueries({ queryKey: ["decks"] });
+    },
+  });
+
+  const cards = cardsQuery.data ?? [];
+
+  return (
+    <div>
+      <TopBar title="My vocabulary" onBack={onBack} />
+      <Content>
+        <div className="flex flex-wrap items-end gap-2">
+          {personalDecks.length > 0 ? (
+            <label className="flex min-w-[180px] flex-1 flex-col gap-1.5">
+              <span className={VOCAB_LABEL}>Deck</span>
+              <select
+                value={deckId ?? ""}
+                onChange={(e) => setSelectedId(Number(e.target.value))}
+                className={VOCAB_INPUT}
+              >
+                {personalDecks.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} · {d.card_count} {d.card_count === 1 ? "card" : "cards"}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newDeckName.trim()) createDeck.mutate(newDeckName.trim());
+            }}
+            className="flex items-end gap-2"
+          >
+            <label className="flex flex-col gap-1.5">
+              <span className={VOCAB_LABEL}>New deck</span>
+              <input
+                value={newDeckName}
+                onChange={(e) => setNewDeckName(e.target.value)}
+                placeholder="e.g. Phrasal verbs"
+                className={VOCAB_INPUT}
+              />
+            </label>
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={!newDeckName.trim() || createDeck.isPending}
+              className="h-11"
+            >
+              {createDeck.isPending ? "Creating…" : "Create"}
+            </Button>
+          </form>
+        </div>
+
+        {deckId == null ? (
+          <p className="rounded-md border border-dashed border-border bg-surface px-3.5 py-6 text-center font-body text-sm text-ink-soft">
+            Create your first deck above to start adding words.
+          </p>
+        ) : (
+          <>
+            <AddCardForm deckId={deckId} />
+
+            <div>
+              <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                {cards.length} {cards.length === 1 ? "word" : "words"} in this deck
+              </p>
+              {cardsQuery.isPending ? (
+                <p className="font-body text-sm text-ink-soft">Loading your words…</p>
+              ) : cards.length === 0 ? (
+                <p className="rounded-md border border-border bg-surface px-3.5 py-4 font-body text-sm text-ink-soft shadow-sm">
+                  No words yet — add your first one above.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {cards.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-start gap-3 rounded-md border border-border bg-surface px-3.5 py-3 shadow-sm"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-display text-[15px] font-semibold text-ink">
+                            {c.term}
+                          </span>
+                          {c.ipa ? (
+                            <span className="font-mono text-xs text-ink-faint">/{c.ipa}/</span>
+                          ) : null}
+                        </div>
+                        <div className="font-body text-sm text-ink-soft">{c.meaning}</div>
+                        {c.example_sentence ? (
+                          <div className="mt-0.5 font-body text-[13px] italic text-ink-faint">
+                            “{c.example_sentence}”
+                          </div>
+                        ) : null}
+                      </div>
+                      <button
+                        onClick={() => removeCard.mutate(c.id)}
+                        disabled={removeCard.isPending}
+                        aria-label={`Delete ${c.term}`}
+                        className="mt-0.5 border-0 bg-transparent p-0 text-ink-faint hover:text-correction disabled:opacity-40"
+                      >
+                        <Icon name="trash" size={17} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {removeCard.isError ? (
+                <p role="alert" className="mt-2 font-body text-[13px] text-correction">
+                  {(removeCard.error as Error).message}
+                </p>
+              ) : null}
+            </div>
+          </>
+        )}
+      </Content>
+    </div>
+  );
+}
+
 const NO_QUIZ: QuizStats = { correct: 0, total: 0, elapsedMs: 0 };
 
 export function StudentApp() {
@@ -721,7 +1045,9 @@ export function StudentApp() {
     // The page background already carries the ruled paper; just fill the height.
     <div className="flex flex-1 flex-col font-body text-ink">
       {screen === "home" ? (
-        <Home onReview={() => setScreen("review")} />
+        <Home onReview={() => setScreen("review")} onManageVocab={() => setScreen("vocab")} />
+      ) : screen === "vocab" ? (
+        <Vocab onBack={() => setScreen("home")} />
       ) : screen === "review" ? (
         <Review
           onFinish={(count) => {

@@ -9,7 +9,13 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { StatTile } from "@/components/ui/StatTile";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { admin, ApiError, type Deck, type UserOut } from "@/lib/api/client";
+import {
+  admin,
+  ApiError,
+  type DashboardStudent,
+  type Deck,
+  type UserOut,
+} from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 /**
@@ -18,14 +24,13 @@ import { useAuth } from "@/lib/auth/AuthProvider";
  * flow. Scanned, not read. Ported from the Lexi Design System's admin UI kit.
  */
 
-const STUDENTS = [
-  { name: "Mai Nguyen", streak: 14, last: "today", due: 3, week: 42, acc: 92, slip: false },
-  { name: "Duc Tran", streak: 9, last: "today", due: 0, week: 38, acc: 88, slip: false },
-  { name: "Linh Pham", streak: 0, last: "6d ago", due: 21, week: 0, acc: 61, slip: true },
-  { name: "Huy Le", streak: 3, last: "yesterday", due: 7, week: 19, acc: 79, slip: false },
-  { name: "An Vo", streak: 0, last: "9d ago", due: 28, week: 0, acc: 55, slip: true },
-  { name: "Thao Bui", streak: 21, last: "today", due: 2, week: 51, acc: 95, slip: false },
-];
+/** "today" / "yesterday" / "3d ago" / "never" from the dashboard's inactivity days. */
+function lastActiveLabel(s: DashboardStudent): string {
+  if (s.last_active_at == null || s.days_inactive == null) return "never";
+  if (s.days_inactive <= 0) return "today";
+  if (s.days_inactive === 1) return "yesterday";
+  return `${s.days_inactive}d ago`;
+}
 
 type View = "dashboard" | "decks" | "students";
 
@@ -158,13 +163,18 @@ function Nav({ view, onChange }: { view: View; onChange: (v: View) => void }) {
 }
 
 function Dashboard({ onAddVocab }: { onAddVocab: () => void }) {
-  const slipping = STUDENTS.filter((s) => s.slip);
+  const dash = useQuery({ queryKey: ["admin-dashboard"], queryFn: admin.dashboard });
+  const students = dash.data?.students ?? [];
+  const summary = dash.data?.summary;
+  const decks = dash.data?.decks ?? [];
+  const slipping = students.filter((s) => s.slipping);
+
   return (
     <div className="w-full overflow-y-auto p-4 sm:p-7">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="m-0 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-            This week · 12 students
+            Last 7 days · {summary ? `${summary.total_students} students` : "class overview"}
           </p>
           <h1 className="mt-1 font-display text-[28px] font-extrabold tracking-tight text-ink">Class overview</h1>
         </div>
@@ -173,11 +183,38 @@ function Dashboard({ onAddVocab }: { onAddVocab: () => void }) {
         </Button>
       </div>
 
+      {dash.isError ? (
+        <p
+          role="alert"
+          className="mb-4 rounded-md border border-correction bg-correction-soft px-3.5 py-2.5 font-body text-sm text-correction"
+        >
+          Couldn&rsquo;t load the class dashboard — {(dash.error as Error).message}
+        </p>
+      ) : null}
+
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Active this week" value="9/12" hint="weekly active" tone="check" />
-        <StatTile label="Reviewed" value="1,204" hint="cards, 7-day" />
-        <StatTile label="Avg accuracy" value="83%" hint="class, 7-day" />
-        <StatTile label="Slipping" value="2" hint="no activity 5d+" tone="correction" />
+        <StatTile
+          label="Active this week"
+          value={summary ? `${summary.active_this_week}/${summary.total_students}` : "—"}
+          hint="weekly active"
+          tone="check"
+        />
+        <StatTile
+          label="Reviewed"
+          value={summary ? summary.reviewed_week.toLocaleString() : "—"}
+          hint="cards, 7-day"
+        />
+        <StatTile
+          label="Avg accuracy"
+          value={summary?.avg_accuracy != null ? `${summary.avg_accuracy}%` : "—"}
+          hint="class, all-time"
+        />
+        <StatTile
+          label="Slipping"
+          value={summary ? String(summary.slipping_count) : "—"}
+          hint="no activity 5d+"
+          tone={summary && summary.slipping_count > 0 ? "correction" : "default"}
+        />
       </div>
 
       <div className="mb-2.5 flex items-center gap-2">
@@ -190,63 +227,131 @@ function Dashboard({ onAddVocab }: { onAddVocab: () => void }) {
         </span>
       </div>
 
-      <div className="overflow-hidden overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
-        <table className="w-full min-w-[720px] border-collapse">
-          <thead>
-            <tr className="border-b border-border">
-              {["Student", "Streak", "Last active", "Due", "Reviewed (wk)", "Accuracy", ""].map((h, i) => (
-                <th
-                  key={i}
-                  className={`px-4 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-faint ${
-                    i === 0 ? "text-left" : "text-center"
-                  }`}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {STUDENTS.map((s) => (
-              <tr key={s.name} className={`border-b border-grid-line ${s.slip ? "bg-correction-soft" : ""}`}>
-                <td className="px-4 py-2.5 font-display text-sm font-semibold text-ink">{s.name}</td>
-                <td
-                  className={`px-4 py-2.5 text-center font-mono text-[13px] font-bold ${
-                    s.streak ? "text-check" : "text-ink-faint"
-                  }`}
-                >
-                  {s.streak || "—"}
-                </td>
-                <td
-                  className={`px-4 py-2.5 text-center font-mono text-xs ${
-                    s.slip ? "text-correction" : "text-ink-soft"
-                  }`}
-                >
-                  {s.last}
-                </td>
-                <td
-                  className={`px-4 py-2.5 text-center font-mono text-[13px] font-bold ${
-                    s.due > 10 ? "text-correction" : "text-ink"
-                  }`}
-                >
-                  {s.due}
-                </td>
-                <td className="px-4 py-2.5 text-center font-mono text-[13px] text-ink-soft">{s.week}</td>
-                <td
-                  className={`px-4 py-2.5 text-center font-mono text-[13px] font-bold ${
-                    s.acc >= 80 ? "text-check" : "text-correction"
-                  }`}
-                >
-                  {s.acc}%
-                </td>
-                <td className="px-4 py-2.5 text-center">
-                  {s.slip ? <Badge tone="correction">nudge</Badge> : <Badge tone="check">on track</Badge>}
-                </td>
+      {dash.isPending ? (
+        <p className="font-body text-sm text-ink-soft">Loading the class…</p>
+      ) : students.length === 0 ? (
+        <p className="rounded-md border border-border bg-surface px-3.5 py-4 font-body text-sm text-ink-soft shadow-sm">
+          No students yet. Add one from the Students tab.
+        </p>
+      ) : (
+        <div className="overflow-hidden overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
+          <table className="w-full min-w-[720px] border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                {["Student", "Streak", "Last active", "Due", "Reviewed (wk)", "Accuracy", ""].map((h, i) => (
+                  <th
+                    key={i}
+                    className={`px-4 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-faint ${
+                      i === 0 ? "text-left" : "text-center"
+                    }`}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
+            </thead>
+            <tbody>
+              {students.map((s) => (
+                <tr
+                  key={s.id}
+                  className={`border-b border-grid-line ${s.slipping ? "bg-correction-soft" : ""}`}
+                >
+                  <td className="px-4 py-2.5 font-display text-sm font-semibold text-ink">
+                    {s.display_name}
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-center font-mono text-[13px] font-bold ${
+                      s.current_streak ? "text-check" : "text-ink-faint"
+                    }`}
+                  >
+                    {s.current_streak || "—"}
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-center font-mono text-xs ${
+                      s.slipping ? "text-correction" : "text-ink-soft"
+                    }`}
+                  >
+                    {lastActiveLabel(s)}
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-center font-mono text-[13px] font-bold ${
+                      s.due_count > 10 ? "text-correction" : "text-ink"
+                    }`}
+                  >
+                    {s.due_count}
+                  </td>
+                  <td className="px-4 py-2.5 text-center font-mono text-[13px] text-ink-soft">
+                    {s.reviewed_week}
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-center font-mono text-[13px] font-bold ${
+                      s.accuracy == null
+                        ? "text-ink-faint"
+                        : s.accuracy >= 80
+                          ? "text-check"
+                          : "text-correction"
+                    }`}
+                  >
+                    {s.accuracy == null ? "—" : `${s.accuracy}%`}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    {s.slipping ? (
+                      <Badge tone="correction">nudge</Badge>
+                    ) : (
+                      <Badge tone="check">on track</Badge>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {decks.length > 0 ? (
+        <div className="mt-7">
+          <div className="mb-2.5 flex items-center gap-2">
+            <span className="text-pen">
+              <Icon name="layers" size={16} />
+            </span>
+            <h2 className="m-0 font-display text-[15px] font-bold text-ink">Deck progress</h2>
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+              {decks.length} {decks.length === 1 ? "deck" : "decks"}
+            </span>
+          </div>
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {decks.map((d) => (
+              <div key={d.id} className="rounded-lg border border-border bg-surface p-4 shadow-card">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate font-display text-sm font-semibold text-ink">
+                      {d.name}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
+                      {d.exam_tag ?? `${d.card_count} ${d.card_count === 1 ? "card" : "cards"}`}
+                    </div>
+                  </div>
+                  <span className="font-mono text-lg font-bold tabular-nums text-ink">
+                    {d.mastered_pct == null ? "—" : `${d.mastered_pct}%`}
+                  </span>
+                </div>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-grid-line">
+                  <div
+                    className="h-full rounded-full bg-check"
+                    style={{ width: `${d.mastered_pct ?? 0}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between font-mono text-[10.5px] text-ink-faint">
+                  <span>
+                    {d.students_assigned} {d.students_assigned === 1 ? "student" : "students"}
+                  </span>
+                  <span>learned</span>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -560,8 +665,115 @@ function AddVocab() {
   );
 }
 
-/** Roster + per-student daily new-card target (SoW §4 curriculum control).
- * Accounts are teacher-created; no self-signup, so this is read + tune, not add. */
+// Common timezones for the ~12-student cohort; keeps the teacher from typo-ing an
+// IANA name the streak/reminder logic depends on. Default matches the backend.
+const TIMEZONES = [
+  "Asia/Ho_Chi_Minh",
+  "Asia/Bangkok",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+  "Europe/London",
+  "UTC",
+];
+
+const EMPTY_STUDENT = {
+  display_name: "",
+  email: "",
+  password: "",
+  timezone: "Asia/Ho_Chi_Minh",
+  daily_new_target: "10",
+};
+type StudentDraft = typeof EMPTY_STUDENT;
+
+/** Register a student (SoW §4): the only way accounts are created — there is no
+ * self-signup, so the teacher provisions each login here and shares the
+ * credentials. Sets the student's timezone up front, since it drives the streak
+ * day boundary and the daily reminder hour (M5). */
+function AddStudentForm() {
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<StudentDraft>(EMPTY_STUDENT);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  const create = useMutation({
+    mutationFn: () =>
+      admin.createStudent({
+        display_name: draft.display_name.trim(),
+        email: draft.email.trim(),
+        password: draft.password,
+        timezone: draft.timezone,
+        daily_new_target: draft.daily_new_target.trim() ? Number(draft.daily_new_target) : undefined,
+      }),
+    onSuccess: (student) => {
+      qc.invalidateQueries({ queryKey: ["admin-students"] });
+      setSaved(`Created ${student.display_name}. Share the email and password with them.`);
+      setDraft(EMPTY_STUDENT);
+    },
+  });
+
+  const err = create.error as ApiError | null;
+  const canSave =
+    draft.display_name.trim() !== "" &&
+    draft.email.trim() !== "" &&
+    draft.password.length >= 8 &&
+    !create.isPending;
+
+  function set(field: keyof StudentDraft, v: string) {
+    setDraft((d) => ({ ...d, [field]: v }));
+    setSaved(null);
+  }
+
+  return (
+    <div className="mb-6 rounded-lg border border-border bg-surface p-4 shadow-card sm:p-5">
+      <p className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        Add a student
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <EditField label="Full name" value={draft.display_name} onChange={(v) => set("display_name", v)} placeholder="Mai Nguyen" />
+        <EditField label="Email" value={draft.email} onChange={(v) => set("email", v)} mono placeholder="mai@lexi.app" />
+        <EditField label="Temporary password" value={draft.password} onChange={(v) => set("password", v)} mono placeholder="at least 8 characters" />
+        <label className="block">
+          <span className="mb-1 block font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+            Timezone
+          </span>
+          <select
+            value={draft.timezone}
+            onChange={(e) => set("timezone", e.target.value)}
+            className="h-[42px] w-full rounded-md border border-border bg-surface px-3 font-body text-[15px] text-ink outline-none focus:border-pen"
+          >
+            {TIMEZONES.map((tz) => (
+              <option key={tz} value={tz}>
+                {tz.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="w-32">
+          <EditField label="Daily new target" value={draft.daily_new_target} onChange={(v) => set("daily_new_target", v)} mono placeholder="10" />
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button variant="primary" onClick={() => create.mutate()} disabled={!canSave}>
+          {create.isPending ? "Creating…" : "Create student"}
+        </Button>
+        {draft.password !== "" && draft.password.length < 8 ? (
+          <span className="font-body text-[13px] text-ink-faint">Password needs at least 8 characters.</span>
+        ) : null}
+        {saved ? <span className="font-body text-[13px] text-check">{saved}</span> : null}
+        {err ? (
+          <span role="alert" className="font-body text-[13px] text-correction">
+            {err.message}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Roster + per-student daily new-card target (SoW §4 curriculum control), plus
+ * the teacher-only "add student" form — the sole account-creation path (no
+ * self-signup). */
 function Students() {
   const qc = useQueryClient();
   const studentsQuery = useQuery({ queryKey: ["admin-students"], queryFn: admin.students });
@@ -579,6 +791,8 @@ function Students() {
         Teacher-created accounts · no self-signup
       </p>
       <h1 className="mt-1 mb-5 font-display text-[26px] font-extrabold tracking-tight text-ink">Students</h1>
+
+      <AddStudentForm />
 
       {studentsQuery.isPending ? (
         <p className="font-body text-sm text-ink-soft">Loading roster…</p>

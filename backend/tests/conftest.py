@@ -4,6 +4,9 @@ import os
 # This deliberately IGNORES .env — the suite drops and recreates every table,
 # so it must never be able to reach the real (Supabase) database.
 os.environ["DATABASE_URL"] = "postgresql+psycopg://lexi:lexi@localhost:5433/lexi_test"
+# Don't spin up the reminder scheduler thread during tests; reminder logic is
+# exercised directly in test_reminders.py.
+os.environ["REMINDER_ENABLED"] = "false"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

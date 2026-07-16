@@ -14,6 +14,9 @@ export type AssignmentOut = components["schemas"]["AssignmentOut"];
 export type QuizQuestion = components["schemas"]["QuizQuestion"];
 export type QuizKind = components["schemas"]["QuizKind"];
 export type QuizAnswerResult = components["schemas"]["QuizAnswerOut"];
+export type Dashboard = components["schemas"]["DashboardOut"];
+export type DashboardStudent = components["schemas"]["DashboardStudent"];
+export type DeckProgress = components["schemas"]["DeckProgress"];
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -105,13 +108,37 @@ export const auth = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+  /** Public self-signup — always creates a student and logs them straight in. */
+  register: (body: { email: string; display_name: string; password: string; timezone?: string }) =>
+    api<TokenResponse>("/auth/register", { method: "POST", body: JSON.stringify(body) }),
   logout: () => api<void>("/auth/logout", { method: "POST" }),
   me: () => api<UserOut>("/auth/me"),
+};
+
+/** A card a student authors in their own deck (manual entry only — no AI). */
+export type PersonalCard = {
+  term: string;
+  meaning: string;
+  ipa?: string | null;
+  example_sentence?: string | null;
 };
 
 export const decks = {
   listMine: () => api<AssignedDeck[]>("/decks"),
   cards: (deckId: number) => api<Card[]>(`/decks/${deckId}/cards`),
+  // Student-owned decks (personal vocab). The API enforces ownership; a deck you
+  // don't own 404s, exactly like the read side.
+  create: (body: { name: string; description?: string | null }) =>
+    api<AssignedDeck>("/decks", { method: "POST", body: JSON.stringify(body) }),
+  rename: (deckId: number, patch: { name?: string; description?: string | null }) =>
+    api<AssignedDeck>(`/decks/${deckId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  remove: (deckId: number) => api<void>(`/decks/${deckId}`, { method: "DELETE" }),
+  addCard: (deckId: number, card: PersonalCard) =>
+    api<Card>(`/decks/${deckId}/cards`, { method: "POST", body: JSON.stringify(card) }),
+  updateCard: (deckId: number, cardId: number, patch: Partial<PersonalCard>) =>
+    api<Card>(`/decks/${deckId}/cards/${cardId}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteCard: (deckId: number, cardId: number) =>
+    api<void>(`/decks/${deckId}/cards/${cardId}`, { method: "DELETE" }),
 };
 
 export const review = {
@@ -147,6 +174,7 @@ export type NewCard = {
 
 /** Teacher-only surface. Authorization is enforced by the API, not here. */
 export const admin = {
+  dashboard: () => api<Dashboard>("/admin/dashboard"),
   decks: () => api<Deck[]>("/admin/decks"),
   createDeck: (body: { name: string; description?: string; exam_tag?: string; topic_tags?: string[] }) =>
     api<Deck>("/admin/decks", { method: "POST", body: JSON.stringify(body) }),
@@ -164,6 +192,13 @@ export const admin = {
       body: JSON.stringify({ terms }),
     }),
   students: () => api<UserOut[]>("/auth/students"),
+  createStudent: (body: {
+    email: string;
+    password: string;
+    display_name: string;
+    timezone?: string;
+    daily_new_target?: number;
+  }) => api<UserOut>("/auth/students", { method: "POST", body: JSON.stringify(body) }),
   updateStudent: (id: number, patch: { display_name?: string; timezone?: string; daily_new_target?: number }) =>
     api<UserOut>(`/admin/students/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   assign: (studentId: number, deckId: number, dailyNewTarget?: number | null) =>

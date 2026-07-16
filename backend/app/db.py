@@ -8,7 +8,23 @@ from app.config import get_settings
 
 settings = get_settings()
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+# Supabase's pooler closes idle connections, so a long-lived process can otherwise
+# hand out — or COMMIT on — a socket the server already dropped ("server closed the
+# connection unexpectedly"). `pool_pre_ping` validates on checkout; `pool_recycle`
+# retires connections well before the pooler's idle cutoff so we never reuse a
+# stale one; libpq keepalives let the client notice a silently-dropped TCP link
+# quickly rather than at the next COMMIT. Belt, braces, and a second belt.
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    connect_args={
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+    },
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 

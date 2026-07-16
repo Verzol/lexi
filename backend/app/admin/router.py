@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.admin.service import build_dashboard
 from app.auth.deps import current_admin
 from app.db import get_db
 from app.models import Assignment, Card, CardState, Deck, Language, Review, User, UserRole
+from app.schemas.admin import DashboardOut
 from app.schemas.auth import UserOut
 from app.schemas.vocab import (
     AssignmentCreate,
@@ -42,6 +44,13 @@ def _assign_one(db: Session, student_id: int, deck_id: int, target: int | None) 
     assignment = Assignment(student_id=student_id, deck_id=deck_id, daily_new_target=target)
     db.add(assignment)
     return assignment
+
+
+@router.get("/dashboard", response_model=DashboardOut)
+def dashboard(db: Session = Depends(get_db)) -> DashboardOut:
+    """Per-student progress + who's slipping (SoW §4 M6). Admin-only via the
+    router-level dependency."""
+    return build_dashboard(db)
 
 
 @router.get("/decks", response_model=list[DeckOut])

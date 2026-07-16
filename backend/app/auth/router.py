@@ -8,7 +8,13 @@ from app.auth.security import create_token, decode_token, hash_password, verify_
 from app.config import get_settings
 from app.db import get_db
 from app.models import Streak, User, UserRole
-from app.schemas.auth import CreateStudentRequest, LoginRequest, TokenResponse, UserOut
+from app.schemas.auth import (
+    CreateStudentRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserOut,
+)
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -34,6 +40,45 @@ def login(body: LoginRequest, response: Response, db: Session = Depends(get_db))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password"
         )
+
+    _set_refresh_cookie(response, user)
+    return TokenResponse(
+        access_token=create_token(user.id, user.role.value, "access"),
+        user=UserOut.model_validate(user),
+    )
+
+
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+def register(
+    body: RegisterRequest, response: Response, db: Session = Depends(get_db)
+) -> TokenResponse:
+    """Public self-signup: create a student account and log them straight in.
+
+    Always creates role=student — the teacher account is provisioned separately.
+    NOTE (flagged, not yet built): this endpoint has no email verification and no
+    rate limiting. Both should land before any real public launch — see
+    docs/SoW §5. Deliberately minimal for the first self-serve pass.
+    """
+    email = body.email.lower()
+    if db.scalar(select(User).where(User.email == email)) is not None:
+        # Distinct from login's uniform error: at signup, telling the user the
+        # email is taken is the expected, non-sensitive UX.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="That email already has an account"
+        )
+
+    user = User(
+        email=email,
+        password_hash=hash_password(body.password),
+        display_name=body.display_name.strip(),
+        role=UserRole.student,
+        timezone=body.timezone,
+    )
+    db.add(user)
+    db.flush()
+    db.add(Streak(student_id=user.id))
+    db.commit()
+    db.refresh(user)
 
     _set_refresh_cookie(response, user)
     return TokenResponse(

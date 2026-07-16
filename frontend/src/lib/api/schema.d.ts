@@ -21,6 +21,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register
+         * @description Public self-signup: create a student account and log them straight in.
+         *
+         *     Always creates role=student — the teacher account is provisioned separately.
+         *     NOTE (flagged, not yet built): this endpoint has no email verification and no
+         *     rate limiting. Both should land before any real public launch — see
+         *     docs/SoW §5. Deliberately minimal for the first self-serve pass.
+         */
+        post: operations["register_auth_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/refresh": {
         parameters: {
             query?: never;
@@ -102,15 +127,44 @@ export interface paths {
         };
         /**
          * List My Decks
-         * @description Students see only the decks assigned to them — the teacher controls focus.
+         * @description Every deck in the student's study loop: teacher-assigned ("class") decks and
+         *     the personal decks they authored themselves. `owned` distinguishes the two.
          */
         get: operations["list_my_decks_decks_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create My Deck
+         * @description Create a personal deck and drop it straight into the student's own study
+         *     loop by self-assigning it — the same Assignment mechanism the teacher uses, so
+         *     the SRS engine needs no special case for personal decks.
+         */
+        post: operations["create_my_deck_decks_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/decks/{deck_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete My Deck
+         * @description Delete a personal deck and its cards. Blocked once any card has been
+         *     graded — `reviews` is an append-only log we never destroy.
+         */
+        delete: operations["delete_my_deck_decks__deck_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename My Deck */
+        patch: operations["rename_my_deck_decks__deck_id__patch"];
         trace?: never;
     };
     "/decks/{deck_id}/cards": {
@@ -123,11 +177,39 @@ export interface paths {
         /** List Deck Cards */
         get: operations["list_deck_cards_decks__deck_id__cards_get"];
         put?: never;
-        post?: never;
+        /**
+         * Add Card To My Deck
+         * @description Add a card to a deck the student owns. `source` is forced to `manual` — the
+         *     AI enrichment path stays teacher-only (cost/abuse), so a student can't route
+         *     through here to tag AI content.
+         */
+        post: operations["add_card_to_my_deck_decks__deck_id__cards_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/decks/{deck_id}/cards/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Card In My Deck
+         * @description Delete a card from a deck the student owns. Blocked once it has review
+         *     history; otherwise drop the per-student scheduling state and remove it.
+         */
+        delete: operations["delete_card_in_my_deck_decks__deck_id__cards__card_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Card In My Deck */
+        patch: operations["update_card_in_my_deck_decks__deck_id__cards__card_id__patch"];
         trace?: never;
     };
     "/review/due": {
@@ -220,6 +302,27 @@ export interface paths {
         };
         /** My Streak */
         get: operations["my_streak_me_streak_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dashboard
+         * @description Per-student progress + who's slipping (SoW §4 M6). Admin-only via the
+         *     router-level dependency.
+         */
+        get: operations["dashboard_admin_dashboard_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -412,6 +515,10 @@ export interface components {
         /**
          * AssignedDeckOut
          * @description A deck as a student sees it — with their own due count folded in.
+         *
+         *     `owned` is True for a personal deck the student authored themselves, False
+         *     for a teacher-assigned ("class") deck — the student can edit the former and
+         *     only study the latter.
          */
         AssignedDeckOut: {
             /** Id */
@@ -428,6 +535,8 @@ export interface components {
             due_count: number;
             /** Card Count */
             card_count: number;
+            /** Owned */
+            owned: boolean;
         };
         /** AssignmentCreate */
         AssignmentCreate: {
@@ -569,6 +678,53 @@ export interface components {
              */
             daily_new_target: number;
         };
+        /** DashboardOut */
+        DashboardOut: {
+            /** Students */
+            students: components["schemas"]["DashboardStudent"][];
+            summary: components["schemas"]["DashboardSummary"];
+            /** Decks */
+            decks: components["schemas"]["DeckProgress"][];
+        };
+        /**
+         * DashboardStudent
+         * @description One row of the teacher's class table (SoW §4 admin dashboard).
+         */
+        DashboardStudent: {
+            /** Id */
+            id: number;
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Current Streak */
+            current_streak: number;
+            /** Last Active At */
+            last_active_at: string | null;
+            /** Days Inactive */
+            days_inactive: number | null;
+            /** Due Count */
+            due_count: number;
+            /** Reviewed Week */
+            reviewed_week: number;
+            /** Accuracy */
+            accuracy: number | null;
+            /** Slipping */
+            slipping: boolean;
+        };
+        /** DashboardSummary */
+        DashboardSummary: {
+            /** Total Students */
+            total_students: number;
+            /** Active This Week */
+            active_this_week: number;
+            /** Reviewed Week */
+            reviewed_week: number;
+            /** Avg Accuracy */
+            avg_accuracy: number | null;
+            /** Slipping Count */
+            slipping_count: number;
+        };
         /** DeckCreate */
         DeckCreate: {
             /** Name */
@@ -595,6 +751,24 @@ export interface components {
             exam_tag?: string | null;
             /** Topic Tags */
             topic_tags: string[];
+        };
+        /**
+         * DeckProgress
+         * @description Per (class) deck progress — how far the assigned students have gotten.
+         */
+        DeckProgress: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Exam Tag */
+            exam_tag: string | null;
+            /** Card Count */
+            card_count: number;
+            /** Students Assigned */
+            students_assigned: number;
+            /** Mastered Pct */
+            mastered_pct: number | null;
         };
         /** EnrichRequest */
         EnrichRequest: {
@@ -653,6 +827,24 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /**
+         * PersonalDeckCreate
+         * @description A student authoring their own deck — no exam_tag/topic_tags, which are
+         *     teacher-curriculum concepts.
+         */
+        PersonalDeckCreate: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+        };
+        /** PersonalDeckUpdate */
+        PersonalDeckUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /** QuizAnswerIn */
         QuizAnswerIn: {
@@ -719,6 +911,27 @@ export interface components {
          */
         Rating: "again" | "hard" | "good" | "easy";
         /**
+         * RegisterRequest
+         * @description Public self-signup — always creates a `student`. Role can't be chosen here;
+         *     teacher accounts are still provisioned out-of-band.
+         */
+        RegisterRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Display Name */
+            display_name: string;
+            /** Password */
+            password: string;
+            /**
+             * Timezone
+             * @default Asia/Ho_Chi_Minh
+             */
+            timezone: string;
+        };
+        /**
          * ReviewCardOut
          * @description A due card as the student reviews it — everything the Flashcard renders.
          */
@@ -756,6 +969,21 @@ export interface components {
             longest_streak: number;
             /** Freezes Remaining */
             freezes_remaining: number;
+        };
+        /**
+         * StudentCardUpdate
+         * @description Partial edit of a card in the student's OWN deck. No `deck_id`: a student
+         *     can't move a card between decks (that could target a teacher's deck).
+         */
+        StudentCardUpdate: {
+            /** Term */
+            term?: string | null;
+            /** Meaning */
+            meaning?: string | null;
+            /** Ipa */
+            ipa?: string | null;
+            /** Example Sentence */
+            example_sentence?: string | null;
         };
         /**
          * StudentUpdate
@@ -842,6 +1070,39 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_auth_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1002,6 +1263,103 @@ export interface operations {
             };
         };
     };
+    create_my_deck_decks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonalDeckCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignedDeckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_my_deck_decks__deck_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_my_deck_decks__deck_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonalDeckUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignedDeckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_deck_cards_decks__deck_id__cards_get: {
         parameters: {
             query?: never;
@@ -1020,6 +1378,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_card_to_my_deck_decks__deck_id__cards_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_card_in_my_deck_decks__deck_id__cards__card_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_card_in_my_deck_decks__deck_id__cards__card_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentCardUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardOut"];
                 };
             };
             /** @description Validation Error */
@@ -1155,6 +1614,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StreakOut"];
+                };
+            };
+        };
+    };
+    dashboard_admin_dashboard_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardOut"];
                 };
             };
         };

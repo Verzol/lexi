@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Assignment, Card, CardState, Deck, Review, User
 from app.models.enums import CardStateEnum, Rating, ReviewSource
+from app.streaks.service import record_activity
 
 # One scheduler with FSRS defaults (desired retention 0.9). Fuzzing is disabled so
 # a given card + rating always yields the same interval — reviews stay predictable
@@ -232,6 +233,9 @@ def grade_card(
             source=source,
         )
     )
+    # Showing up today advances the daily streak (review or quiz — both land here),
+    # in the same transaction as the review so the two can't disagree.
+    record_activity(db, cs.student_id)
     db.commit()
     db.refresh(cs)
     return cs

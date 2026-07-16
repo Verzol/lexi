@@ -33,6 +33,21 @@ class Settings(BaseSettings):
     seed_admin_email: str = "teacher@lexi.app"
     seed_admin_password: str = "changeme"
 
+    # Daily reminder email (M5). A background job nudges any student who hasn't
+    # studied yet, once a day, at `reminder_hour` in the student's own timezone.
+    # When `smtp_host` is unset the email is *logged, not sent* — so dev runs and
+    # the test suite never touch the network. Web push is a Phase-2 enhancement.
+    reminder_enabled: bool = True
+    reminder_hour: int = 19  # local hour (0–23) to send the nudge
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_starttls: bool = True
+    reminder_from: str = "Lexi <noreply@lexi.app>"
+    # Link the email points the student at (their review screen).
+    app_base_url: str = "http://localhost:3000"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -12,11 +12,11 @@ The teacher adds words (AI drafts the definition, IPA, and example) and assigns 
 
 Two services talking over a JSON API.
 
-| Directory     | Contents                                                                                                             |
-| ------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `backend/`  | FastAPI, SQLAlchemy 2.0, Alembic, FSRS. Owns all data, auth, and scheduling.                                         |
-| `frontend/` | Next.js (App Router, TS), Tailwind v4, TanStack Query. The API client is**generated** from the OpenAPI schema. |
-| `docs/`     | Scope of Work + Architecture.                                                                                        |
+| Directory     | Contents                                                                                                               |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `backend/`  | FastAPI, SQLAlchemy 2.0, Alembic, FSRS. Owns all data, auth, and scheduling.                                           |
+| `frontend/` | Next.js (App Router, TS), Tailwind v4, TanStack Query. The API client is **generated** from the OpenAPI schema. |
+| `docs/`     | Scope of Work + Architecture.                                                                                          |
 
 Authorization is enforced in the **backend only**. The frontend hides admin UI for UX; it is not a security boundary.
 
