@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -38,8 +39,26 @@ def _guard_production_secrets(cfg) -> None:
         )
 
 
+def _configure_app_logging() -> None:
+    """Make our own INFO logs visible under uvicorn.
+
+    `uvicorn --log-level info` only configures uvicorn's loggers; the root
+    logger stays at WARNING, so everything the app logs at INFO — notably
+    `app.email`, which prints the verification link when SMTP is unconfigured —
+    vanishes. Attach a handler to the `app` logger namespace instead of touching
+    the root, so we don't reformat uvicorn's own output.
+    """
+    app_logger = logging.getLogger("app")
+    app_logger.setLevel(logging.INFO)
+    if not app_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s:     [%(name)s] %(message)s"))
+        app_logger.addHandler(handler)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _configure_app_logging()
     _guard_production_secrets(settings)
     # The daily-reminder scheduler lives with the app process (SoW §4 M5).
     start_scheduler()

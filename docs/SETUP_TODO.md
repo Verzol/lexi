@@ -1,8 +1,12 @@
 # Setup TODO — what *you* still have to turn on
 
-M7 shipped the code for email verification and Google sign-in, but both need
-credentials I can't create for you. Until you do the two blocks below, the app
-still runs fine — it just degrades quietly:
+**Status 2026-07-22:** SMTP is configured (Gmail app password) and the whole
+verification flow was tested end-to-end against Supabase — register → email
+delivered → link clicked → `email_verified` flipped in the database. Supabase is
+migrated. What's left is §1 (Google) and §3 (production).
+
+Until each block below is done the app still runs fine — it just degrades
+quietly:
 
 | Not configured | What actually happens |
 |---|---|
@@ -56,9 +60,13 @@ APP_BASE_URL=http://localhost:3000   # the verify link is built from this
 Check: register a new account → you receive the "Confirm your email" message →
 the link lands on `/verify-email?token=…` → the banner on Home disappears.
 
-Without SMTP you can still test the flow — the verification URL is written to
-the log by logger `app.email` at INFO. Note uvicorn leaves the root logger at
-WARNING, so run with `--log-level info` or you won't see it.
+Without SMTP you can still test the flow — the verification URL is printed to
+the log by logger `app.email` (`main.py._configure_app_logging` raises the `app`
+namespace to INFO, since uvicorn only configures its own loggers).
+
+**Gmail note:** use port **587**, never 465 — `app/email.py` speaks STARTTLS
+only. And set `REMINDER_FROM` to an address you actually control; the default
+`noreply@lexi.app` is a domain you don't own and will be spam-filtered.
 
 ## 3. Before you deploy anywhere public
 
@@ -67,8 +75,9 @@ WARNING, so run with `--log-level info` or you won't see it.
 - `COOKIE_SECURE=true` (requires HTTPS).
 - `CORS_ORIGINS` — your real frontend origin, not `localhost:3000`.
 - Add the production domain to the Google OAuth **authorised origins**.
-- Run `uv run alembic upgrade head` against the Supabase database — migrations
-  `c1a2b3d4e5f6` and `d2b3c4e5f6a7` have only been applied locally so far.
+- ~~Run `uv run alembic upgrade head` against Supabase~~ — **done 2026-07-22**.
+  Supabase is at `d2b3c4e5f6a7`; the three pre-existing accounts were backfilled
+  to `email_verified = true`.
 
 ## 4. Loose end worth a fresh look
 

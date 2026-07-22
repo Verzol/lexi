@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app.auth import router as auth_router
 from app.auth.google import GoogleIdentity
+from app.config import get_settings
 from app.models import User
 
 
@@ -53,7 +54,10 @@ def test_google_rejects_an_unverified_email(client, fake_google):
     assert resp.status_code == 401
 
 
-def test_google_is_503_when_not_configured(client):
-    # No monkeypatch: the real verifier sees no GOOGLE_CLIENT_ID and refuses.
+def test_google_is_503_when_not_configured(client, monkeypatch):
+    # Force the unconfigured case rather than relying on GOOGLE_CLIENT_ID being
+    # absent from the environment — a developer with a real one in .env would
+    # otherwise see the live verifier run and this assert flip to 401.
+    monkeypatch.setattr(get_settings(), "google_client_id", None)
     resp = client.post("/auth/google", json={"credential": "x"})
     assert resp.status_code == 503
