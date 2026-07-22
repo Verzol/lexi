@@ -78,10 +78,13 @@ Deferred deliberately, not forgotten:
 | M5 | Streaks + reminders             | Daily streak + email/push live                        |
 | M6 | Admin dashboard                 | Progress + "who's slipping"; pilot with real students |
 | M7 | Launch hardening + accounts     | Rate limiting, token revocation, secret guard, CI; email verification + Google sign-in |
+| M8 | Learning quality *(in progress)* | A ✅ quiz graded server-side · B audio + listening/cloze · C split the two God-components |
 
 M1–M6 close out Phase 1 as originally scoped. **M7** is post-Phase-1 work added
-once self-signup went public: it makes the signup path safe to expose (see §5),
-and is what `docs/SETUP_TODO.md` asks you to finish configuring.
+once self-signup went public: it makes the signup path safe to expose (see §5).
+**M8** draws deliberately from the Phase 2 backlog (§8) now that Phase 1 is
+closed; pronunciation/speaking scoring stays cut. Setup state lives in
+`docs/SETUP_TODO.md`.
 
 ## 8. Phase 2 Backlog (unscoped)
 
