@@ -24,6 +24,9 @@ class QuizQuestion(BaseModel):
 
     card_id: int
     kind: QuizKind
+    # Signed (card_id, kind) pair, echoed back when answering. `kind` above is
+    # for rendering only — grading trusts this, not the client's word.
+    token: str
     # Shown for mcq (the word to match); withheld for type_answer (it's the answer).
     term: str | None = None
     ipa: str | None = None
@@ -37,7 +40,10 @@ class QuizQuestion(BaseModel):
 
 class QuizAnswerIn(BaseModel):
     card_id: int
-    kind: QuizKind
+    # The `token` from the question being answered. Deliberately not a `kind`:
+    # letting the client name the format would let it pick which field its answer
+    # is graded against, and the meaning is already on screen for type_answer.
+    token: str
     # The chosen option text (mcq) or the typed term (type_answer).
     answer: str
     # How long the student spent, for analytics — optional.

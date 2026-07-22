@@ -923,7 +923,8 @@ export interface components {
         QuizAnswerIn: {
             /** Card Id */
             card_id: number;
-            kind: components["schemas"]["QuizKind"];
+            /** Token */
+            token: string;
             /** Answer */
             answer: string;
             /** Elapsed Ms */
@@ -967,6 +968,8 @@ export interface components {
             /** Card Id */
             card_id: number;
             kind: components["schemas"]["QuizKind"];
+            /** Token */
+            token: string;
             /** Term */
             term?: string | null;
             /** Ipa */

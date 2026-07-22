@@ -5,6 +5,13 @@ from datetime import UTC, datetime
 
 from app.models import Card, CardState, Review
 from app.models.enums import CardStateEnum, ReviewSource
+from app.quiz.service import issue_question_token
+from app.schemas.quiz import QuizKind
+
+
+def _token(card, kind: QuizKind) -> str:
+    """A question token as /quiz would have issued it for this card and format."""
+    return issue_question_token(card.id, kind)
 
 
 def _make_known(db_session, seeded):
@@ -45,6 +52,7 @@ def test_quiz_draws_only_known_cards(client, student_auth, seeded, db_session):
     for q in questions:
         assert q["card_id"] in known_ids
         assert q["kind"] in {"mcq", "type_answer"}
+        assert q["token"], "every question must carry the token used to grade it"
         if q["kind"] == "mcq":
             # The word is shown; the answer (meaning) is withheld but sits among the options.
             assert q["term"] is not None and q["meaning"] is None
@@ -64,7 +72,11 @@ def test_correct_answer_grades_good_and_logs_a_quiz_review(
     resp = client.post(
         "/quiz/answer",
         headers=student_auth,
-        json={"card_id": card.id, "kind": "type_answer", "answer": "  Meticulous. "},
+        json={
+            "card_id": card.id,
+            "token": _token(card, QuizKind.type_answer),
+            "answer": "  Meticulous. ",
+        },
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -86,12 +98,20 @@ def test_wrong_answer_grades_again_and_reschedules_sooner(
     wrong = client.post(
         "/quiz/answer",
         headers=student_auth,
-        json={"card_id": again_card.id, "kind": "type_answer", "answer": "completely wrong"},
+        json={
+            "card_id": again_card.id,
+            "token": _token(again_card, QuizKind.type_answer),
+            "answer": "completely wrong",
+        },
     ).json()
     right = client.post(
         "/quiz/answer",
         headers=student_auth,
-        json={"card_id": good_card.id, "kind": "type_answer", "answer": "resilient"},
+        json={
+            "card_id": good_card.id,
+            "token": _token(good_card, QuizKind.type_answer),
+            "answer": "resilient",
+        },
     ).json()
 
     assert wrong["correct"] is False
@@ -107,7 +127,7 @@ def test_mcq_grades_the_chosen_meaning(client, student_auth, seeded, db_session)
     resp = client.post(
         "/quiz/answer",
         headers=student_auth,
-        json={"card_id": card.id, "kind": "mcq", "answer": card.meaning},
+        json={"card_id": card.id, "token": _token(card, QuizKind.mcq), "answer": card.meaning},
     )
     assert resp.status_code == 200
     assert resp.json()["correct"] is True
@@ -120,6 +140,67 @@ def test_cannot_answer_a_card_from_an_unassigned_deck(client, other_auth, seeded
     resp = client.post(
         "/quiz/answer",
         headers=other_auth,
-        json={"card_id": card.id, "kind": "type_answer", "answer": "meticulous"},
+        json={
+            "card_id": card.id,
+            "token": _token(card, QuizKind.type_answer),
+            "answer": "meticulous",
+        },
     )
     assert resp.status_code == 404
+
+
+def test_a_type_answer_question_cannot_be_graded_as_mcq(
+    client, student_auth, seeded, db_session
+):
+    """The exploit this token exists to stop.
+
+    A type-the-answer question shows the student the meaning and asks for the
+    term. If the client could claim the question was an mcq, echoing back the
+    meaning already on screen would grade `good` and feed FSRS a lie.
+    """
+    _make_known(db_session, seeded)
+    card = seeded["deck"].cards[0]
+
+    resp = client.post(
+        "/quiz/answer",
+        headers=student_auth,
+        # A genuine token — but for type_answer, while the answer is the meaning.
+        json={
+            "card_id": card.id,
+            "token": _token(card, QuizKind.type_answer),
+            "answer": card.meaning,
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["correct"] is False
+    assert db_session.query(Review).filter_by(card_id=card.id).one().rating.value == "again"
+
+
+def test_a_forged_or_missing_token_is_rejected(client, student_auth, seeded, db_session):
+    _make_known(db_session, seeded)
+    card = seeded["deck"].cards[0]
+
+    for token in ("", "not-a-token", _token(card, QuizKind.mcq) + "x"):
+        resp = client.post(
+            "/quiz/answer",
+            headers=student_auth,
+            json={"card_id": card.id, "token": token, "answer": card.meaning},
+        )
+        assert resp.status_code == 400, token
+
+    # Nothing was graded, so the scheduler never saw these attempts.
+    assert db_session.query(Review).filter_by(card_id=card.id).count() == 0
+
+
+def test_a_token_cannot_be_replayed_against_a_different_card(
+    client, student_auth, seeded, db_session
+):
+    _make_known(db_session, seeded)
+    easy, other = seeded["deck"].cards
+
+    resp = client.post(
+        "/quiz/answer",
+        headers=student_auth,
+        json={"card_id": other.id, "token": _token(easy, QuizKind.mcq), "answer": other.meaning},
+    )
+    assert resp.status_code == 400

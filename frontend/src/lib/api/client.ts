@@ -163,12 +163,14 @@ export const review = {
 
 export const quiz = {
   get: () => api<QuizQuestion[]>("/quiz"),
-  answer: (cardId: number, kind: QuizKind, answer: string, elapsedMs?: number) =>
+  // `token` comes straight from the question — it's what tells the server which
+  // format to grade against, so the client never names the kind itself.
+  answer: (cardId: number, token: string, answer: string, elapsedMs?: number) =>
     api<QuizAnswerResult>("/quiz/answer", {
       method: "POST",
       body: JSON.stringify({
         card_id: cardId,
-        kind,
+        token,
         answer,
         elapsed_ms: elapsedMs ?? null,
       }),

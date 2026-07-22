@@ -2,26 +2,72 @@
 type-the-answer questions drawn from cards the student already knows. Answers feed
 the FSRS scheduler — a miss reschedules the card sooner — via `srs.grade_card`.
 
-Generation is stateless: the quiz isn't stored, and grading in the router
-re-derives the correct answer from the card itself, so there's nothing to persist
-between serving a quiz and grading it.
+Generation stays stateless — the quiz isn't stored — but the *shape* of each
+question is not something the client may choose. Which field counts as the
+correct answer depends on `kind`, so a client-supplied `kind` would let a student
+grade a type-the-answer question against the meaning that is sitting right there
+on their screen. Each question therefore carries a short-lived signed token
+binding `card_id` to `kind`; grading trusts the token, never the request body.
 """
 
 import random
 import re
+from datetime import UTC, datetime, timedelta
 
+import jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.models import Card, CardState
 from app.models.enums import CardStateEnum
 from app.schemas.quiz import QuizKind, QuizQuestion
 from app.srs.service import assigned_deck_ids, ensure_card_states
 
+settings = get_settings()
+
 # A quiz stays short so a session ends cleanly (SoW §4 soft cap).
 QUIZ_LENGTH = 5
 # An MCQ needs the correct meaning plus this many distractors.
 _MCQ_DISTRACTORS = 3
+# Long enough for an unhurried session, short enough that a token isn't a
+# permanent licence to re-grade a card in whichever format is easiest.
+_QUESTION_TOKEN_TTL = timedelta(hours=2)
+
+
+class QuestionTokenError(Exception):
+    """The submitted question token was missing, expired, forged, or for another card."""
+
+
+def issue_question_token(card_id: int, kind: QuizKind) -> str:
+    """Sign the (card, format) pair we actually asked, so grading can trust it."""
+    now = datetime.now(UTC)
+    payload = {
+        "card_id": card_id,
+        "kind": kind.value,
+        "type": "quiz_question",
+        "iat": now,
+        "exp": now + _QUESTION_TOKEN_TTL,
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_question_token(token: str, expected_card_id: int) -> QuizKind:
+    """Recover the format this question was issued in. Raises QuestionTokenError."""
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except jwt.PyJWTError as exc:
+        raise QuestionTokenError(str(exc)) from exc
+
+    if payload.get("type") != "quiz_question":
+        raise QuestionTokenError("not a quiz question token")
+    # Without this, a token for an easy card could be replayed against a hard one.
+    if payload.get("card_id") != expected_card_id:
+        raise QuestionTokenError("token was issued for a different card")
+    try:
+        return QuizKind(payload.get("kind"))
+    except ValueError as exc:
+        raise QuestionTokenError("unknown question kind") from exc
 
 
 def normalize(text: str) -> str:
@@ -80,6 +126,7 @@ def generate_quiz(db: Session, student_id: int, length: int = QUIZ_LENGTH) -> li
                 QuizQuestion(
                     card_id=card.id,
                     kind=QuizKind.mcq,
+                    token=issue_question_token(card.id, QuizKind.mcq),
                     term=card.term,
                     ipa=card.ipa,
                     options=options,
@@ -90,6 +137,7 @@ def generate_quiz(db: Session, student_id: int, length: int = QUIZ_LENGTH) -> li
                 QuizQuestion(
                     card_id=card.id,
                     kind=QuizKind.type_answer,
+                    token=issue_question_token(card.id, QuizKind.type_answer),
                     meaning=card.meaning,
                     example_sentence=_blank_out_term(card.example_sentence, card.term),
                 )

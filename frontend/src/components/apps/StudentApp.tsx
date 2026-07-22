@@ -17,7 +17,6 @@ import {
   review as reviewApi,
   type AssignedDeck,
   type QuizAnswerResult,
-  type QuizKind,
 } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
@@ -515,8 +514,8 @@ function QuizNotice({
 function Quiz({ onFinish, onBack }: { onFinish: (stats: QuizStats) => void; onBack: () => void }) {
   const quizQuery = useQuery({ queryKey: ["quiz"], queryFn: quizApi.get, staleTime: 0 });
   const answer = useMutation({
-    mutationFn: (v: { cardId: number; kind: QuizKind; answer: string; elapsedMs: number }) =>
-      quizApi.answer(v.cardId, v.kind, v.answer, v.elapsedMs),
+    mutationFn: (v: { cardId: number; token: string; answer: string; elapsedMs: number }) =>
+      quizApi.answer(v.cardId, v.token, v.answer, v.elapsedMs),
   });
 
   const [idx, setIdx] = useState(0);
@@ -575,7 +574,7 @@ function Quiz({ onFinish, onBack }: { onFinish: (stats: QuizStats) => void; onBa
     try {
       const verdict = await answer.mutateAsync({
         cardId: q.card_id,
-        kind: q.kind,
+        token: q.token,
         answer: value,
         elapsedMs,
       });
