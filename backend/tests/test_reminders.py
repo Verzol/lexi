@@ -37,6 +37,22 @@ def test_unassigned_student_is_never_nudged(db_session, seeded):
     assert seeded["other"].email not in [u.email for u in due]
 
 
+def test_unverified_student_is_never_nudged(db_session, seeded):
+    """Public signup means an address can be a typo or invented; don't bounce
+    mail at it daily. Studying is unaffected — only email is withheld."""
+    student = seeded["student"]
+    student.email_verified = False
+    db_session.commit()
+
+    assert students_due_reminder(db_session, AT_LOCAL_HOUR) == []
+    assert send_daily_reminders(db_session, AT_LOCAL_HOUR) == 0
+
+    # Verifying the address lets the nudge through again.
+    student.email_verified = True
+    db_session.commit()
+    assert [u.email for u in students_due_reminder(db_session, AT_LOCAL_HOUR)] == ["mai@lexi.app"]
+
+
 def test_send_marks_reminded_and_is_idempotent_for_the_day(db_session, seeded):
     sent = send_daily_reminders(db_session, AT_LOCAL_HOUR)
     assert sent == 1

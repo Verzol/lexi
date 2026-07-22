@@ -39,9 +39,18 @@ def _already_reminded_today(streak: Streak | None, today: date) -> bool:
 def students_due_reminder(db: Session, now_utc: datetime) -> list[User]:
     """Students to nudge right now: it's their local reminder hour, they haven't
     studied today, haven't already been reminded today, and actually have work
-    assigned (an unassigned student gets no pointless nag)."""
+    assigned (an unassigned student gets no pointless nag).
+
+    Unverified accounts are skipped. Self-signup is public, so an address may be
+    a typo or invented; nagging it daily just bounces mail forever and burns the
+    sending reputation of whatever account is configured in SMTP_*. This does not
+    tighten the soft gate — an unverified student still studies and still keeps a
+    streak, they just don't get email until the address is known to be real.
+    """
     settings = get_settings()
-    students = db.scalars(select(User).where(User.role == UserRole.student)).all()
+    students = db.scalars(
+        select(User).where(User.role == UserRole.student, User.email_verified.is_(True))
+    ).all()
 
     due: list[User] = []
     for student in students:
