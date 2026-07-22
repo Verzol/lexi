@@ -47,11 +47,15 @@ def assigned_deck_ids(db: Session, student_id: int) -> list[int]:
     )
 
 
-def ensure_card_states(db: Session, student_id: int) -> int:
+def ensure_card_states(db: Session, student_id: int, commit: bool = True) -> int:
     """
     Lazily materialize a CardState row for every card in the student's active
     decks. New cards a teacher adds to an already-assigned deck get picked up
     here on the student's next request. Returns the number of rows created.
+
+    `commit=False` flushes instead of committing, so a caller iterating over
+    many students (the admin dashboard) can fold every write into one commit
+    rather than committing once per student on a read.
     """
     deck_ids = assigned_deck_ids(db, student_id)
     if not deck_ids:
@@ -68,7 +72,10 @@ def ensure_card_states(db: Session, student_id: int) -> int:
     db.add_all(
         [CardState(student_id=student_id, card_id=card_id, due_at=now) for card_id in missing]
     )
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return len(missing)
 
 

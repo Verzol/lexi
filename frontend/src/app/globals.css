@@ -1,30 +1,34 @@
 @import "tailwindcss";
 
 /*
- * Lexi Design System tokens — ported from the Claude Design project
- * "Lexi Design System" (a5d95d8a-72ec-40a7-89dc-ed66b7367b40).
- * Fonts are loaded via next/font/google (see src/lib/fonts.ts) rather than
- * the project's raw @import, for self-hosting + no layout shift; every other
- * token below is a direct port of tokens/colors.css, tokens/effects.css and
- * tokens/typography.css.
+ * Lexi Design System — "The Lexicon".
+ *
+ * Every screen reads like an entry in a dictionary the student is authoring
+ * from memory: a literary headword face (Fraunces), a pronunciation key set in
+ * mono, and a definition in serif. The palette is archival paper and indigo
+ * ink — the pen is the student's, correction red is the teacher's, check green
+ * confirms, gold marks a streak. Tokens below are the source of truth; build
+ * screens by composing them, never by hand-rolling new colors.
  */
 
 :root {
-  /* --- Base palette --- */
-  --paper: #fcfcfa;
-  --surface: #ffffff;
-  --ink: #1d2b4f;
-  --ink-soft: #55618a;
-  --ink-faint: #8890ac;
-  --pen: #2a4fd6;
-  --pen-soft: #e7ecfc;
-  --correction: #d6362a;
-  --correction-soft: #fbeae8;
-  --check: #2f9e5b;
-  --check-soft: #e5f5ec;
-  --highlight: #f5c518;
-  --grid-line: #eef0f6;
-  --border: #d8dce8;
+  /* --- Base palette (light) --- */
+  --paper: #f3f4ef;
+  --surface: #fcfcfa;
+  --ink: #1c2230;
+  --ink-soft: #4e5666;
+  --ink-faint: #8a92a0;
+  --pen: #3e3b94;
+  --pen-strong: #302d78;
+  --pen-soft: #eae9f4;
+  --correction: #c13a2b;
+  --correction-soft: #f7e7e3;
+  --check: #2c8a5a;
+  --check-soft: #e2f0e9;
+  --highlight: #e7a81e;
+  --highlight-soft: #f6e7c2;
+  --grid-line: #ecede7;
+  --border: #e3e1d8;
 
   /* --- Spacing scale (px) --- */
   --space-1: 4px;
@@ -39,26 +43,25 @@
   --space-16: 64px;
 
   /* --- Radii --- */
-  --radius-sm: 6px;
+  --radius-sm: 5px;
   --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
+  --radius-lg: 11px;
+  --radius-xl: 14px;
   --radius-full: 999px;
 
-  /* --- Shadows --- */
-  --shadow-card: 0 1px 2px rgba(29, 43, 79, 0.06), 0 6px 20px rgba(29, 43, 79, 0.07);
-  --shadow-sm: 0 1px 2px rgba(29, 43, 79, 0.08);
-
-  /* --- The ruled-paper texture --- */
-  --paper-rule: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--grid-line) 28px);
+  /* --- Shadows (soft, so the paper stays quiet) --- */
+  --shadow-card: 0 1px 2px rgba(28, 34, 48, 0.04), 0 4px 18px rgba(28, 34, 48, 0.06);
+  --shadow-sm: 0 1px 2px rgba(28, 34, 48, 0.06);
 
   /* --- Motion --- */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --dur-fast: 150ms;
 
   /* --- Type scale (px) --- */
-  --text-3xl: 30px;
-  --text-2xl: 24px;
+  --text-5xl: 52px;
+  --text-4xl: 40px;
+  --text-3xl: 31px;
+  --text-2xl: 25px;
   --text-xl: 20px;
   --text-lg: 18px;
   --text-base: 16px;
@@ -67,61 +70,65 @@
   --text-2xs: 10.5px;
 
   /* --- Tracking --- */
-  --tracking-tight: -0.01em;
-  --tracking-label: 0.14em;
+  --tracking-tight: -0.02em;
+  --tracking-label: 0.16em;
   --tracking-wide: 0.06em;
 
   /* --- Line heights --- */
-  --leading-tight: 1.1;
+  --leading-tight: 1.05;
   --leading-snug: 1.35;
-  --leading-normal: 1.55;
+  --leading-normal: 1.6;
 }
 
 /*
- * Dark theme. Declared once and applied in two ways:
- *   1. the OS preference, unless the user has explicitly chosen light
- *   2. an explicit user choice, which must win over the OS in both directions
- * `data-theme` is stamped on <html> by ThemeProvider (and by an inline script
- * in layout.tsx, so the correct theme paints on the very first frame).
+ * Dark theme — "the plate". Applied two ways: the OS preference (unless the
+ * user has explicitly chosen light), and an explicit user choice that must win
+ * over the OS in both directions. `data-theme` is stamped on <html> by the
+ * ThemeProvider and by an inline script in layout.tsx, so the right theme
+ * paints on the first frame.
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #12151c;
-    --surface: #191d26;
-    --ink: #e9ebf3;
-    --ink-soft: #a6acc2;
-    --ink-faint: #6b7386;
-    --pen: #7c93ff;
-    --pen-soft: #232a4a;
-    --correction: #f0665a;
-    --correction-soft: #3a2321;
-    --check: #4fc886;
-    --check-soft: #1a3327;
-    --highlight: #e0b400;
-    --grid-line: #242a38;
-    --border: #2a2f3d;
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.4);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --paper: #14161c;
+    --surface: #1b1e26;
+    --ink: #ecebe3;
+    --ink-soft: #a9aebc;
+    --ink-faint: #6c7280;
+    --pen: #9d9af0;
+    --pen-strong: #b3b0ff;
+    --pen-soft: #262640;
+    --correction: #ed6b5a;
+    --correction-soft: #3a231f;
+    --check: #56c98c;
+    --check-soft: #163720;
+    --highlight: #e7bb55;
+    --highlight-soft: #3a320f;
+    --grid-line: #242833;
+    --border: #2a2e3a;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.45);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
 }
 
 :root[data-theme="dark"] {
-  --paper: #12151c;
-  --surface: #191d26;
-  --ink: #e9ebf3;
-  --ink-soft: #a6acc2;
-  --ink-faint: #6b7386;
-  --pen: #7c93ff;
-  --pen-soft: #232a4a;
-  --correction: #f0665a;
-  --correction-soft: #3a2321;
-  --check: #4fc886;
-  --check-soft: #1a3327;
-  --highlight: #e0b400;
-  --grid-line: #242a38;
-  --border: #2a2f3d;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --paper: #14161c;
+  --surface: #1b1e26;
+  --ink: #ecebe3;
+  --ink-soft: #a9aebc;
+  --ink-faint: #6c7280;
+  --pen: #9d9af0;
+  --pen-strong: #b3b0ff;
+  --pen-soft: #262640;
+  --correction: #ed6b5a;
+  --correction-soft: #3a231f;
+  --check: #56c98c;
+  --check-soft: #163720;
+  --highlight: #e7bb55;
+  --highlight-soft: #3a320f;
+  --grid-line: #242833;
+  --border: #2a2e3a;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 @theme inline {
@@ -131,12 +138,14 @@
   --color-ink-soft: var(--ink-soft);
   --color-ink-faint: var(--ink-faint);
   --color-pen: var(--pen);
+  --color-pen-strong: var(--pen-strong);
   --color-pen-soft: var(--pen-soft);
   --color-correction: var(--correction);
   --color-correction-soft: var(--correction-soft);
   --color-check: var(--check);
   --color-check-soft: var(--check-soft);
   --color-highlight: var(--highlight);
+  --color-highlight-soft: var(--highlight-soft);
   --color-grid-line: var(--grid-line);
   --color-border: var(--border);
 
@@ -156,14 +165,20 @@
 
 body {
   background-color: var(--paper);
-  background-image: var(--paper-rule);
   color: var(--ink);
-  font-family: var(--font-body), Georgia, serif;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Fraunces is optical-size aware — let the browser tune it to the rendered size. */
+.font-display {
+  font-optical-sizing: auto;
 }
 
 ::selection {
-  background: var(--highlight);
-  color: #1d2b4f;
+  background: var(--highlight-soft);
+  color: var(--ink);
 }
 
 a {
@@ -171,9 +186,10 @@ a {
   text-decoration: none;
 }
 a:hover {
-  color: var(--ink);
+  color: var(--pen-strong);
   text-decoration: underline;
-  text-decoration-color: var(--pen);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 * {

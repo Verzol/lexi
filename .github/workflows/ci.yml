@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (ruff + pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      # Mirrors the local test setup: conftest.py hardcodes localhost:5433 and
+      # drops/recreates every table, so this is a throwaway Postgres.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: lexi
+          POSTGRES_PASSWORD: lexi
+          POSTGRES_DB: lexi
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U lexi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --dev
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+
+  frontend:
+    name: frontend (tsc + lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint

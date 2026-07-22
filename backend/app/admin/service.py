@@ -66,8 +66,10 @@ def build_dashboard(db: Session) -> DashboardOut:
 
     for s in students:
         # Materialize any not-yet-seen cards so due counts are real even for a
-        # student who has never opened the app (same lazy path the student read uses).
-        ensure_card_states(db, s.id)
+        # student who has never opened the app (same lazy path the student read
+        # uses). Defer the commit — this is a GET over every student, so we fold
+        # all the materialization into one commit below instead of N.
+        ensure_card_states(db, s.id, commit=False)
         due = sum(due_count_by_deck(db, s.id).values())
 
         agg = all_time.get(s.id)
@@ -103,6 +105,9 @@ def build_dashboard(db: Session) -> DashboardOut:
             active_this_week += 1
         if slipping:
             slipping_count += 1
+
+    # One commit for every student's lazily-materialized card states.
+    db.commit()
 
     summary = DashboardSummary(
         total_students=len(students),

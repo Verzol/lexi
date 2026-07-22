@@ -10,10 +10,10 @@ A web app where students study English **between lessons** while the teacher con
 
 ## 2. Users & Roles
 
-| Role | Who | Job-to-be-done |
-|---|---|---|
-| **Student** | ~12 learners | "Tell me what to review today, let me finish in a few minutes." |
-| **Admin/Teacher** | Verzol | "Push the right content to each student, see who's keeping up." |
+| Role                    | Who          | Job-to-be-done                                                  |
+| ----------------------- | ------------ | --------------------------------------------------------------- |
+| **Student**       | ~12 learners | "Tell me what to review today, let me finish in a few minutes." |
+| **Admin/Teacher** | Verzol       | "Push the right content to each student, see who's keeping up." |
 
 Students **self-register** (public signup → always a `student`); the teacher no
 longer provisions every account. "Being in a class" is still teacher-controlled —
@@ -51,7 +51,7 @@ Deferred deliberately, not forgotten:
 
 - Document/content library (use a shared folder/linked page instead)
 - Full mock-exam simulator, quest generation
-- ~~Public sign-up~~ / multi-teacher support — **public self-signup was pulled into scope** (see §2). Multi-teacher support stays deferred. Deferred hardening still owed on the signup path: **email verification** and **rate limiting** (the endpoint has neither yet)
+- ~~Public sign-up~~ / multi-teacher support — **public self-signup was pulled into scope** (see §2). Multi-teacher support stays deferred. The hardening once owed on the signup path (**email verification** and **rate limiting**) shipped in M7 (§7), together with **Google sign-in**
 - Native iOS/Android apps (PWA install prompt only)
 - Gamification beyond streaks (no leaderboards/XP/badges)
 - Payments/monetization
@@ -69,14 +69,19 @@ Deferred deliberately, not forgotten:
 
 ## 7. Delivery Milestones
 
-| # | Milestone | Outcome |
-|---|---|---|
-| M1 | Foundations | Accounts, login, data model, one viewable deck |
-| M2 | SRS review loop | "Review Today" works end-to-end (FSRS) |
-| M3 | Admin add-vocab + AI enrichment | Fast add/enrich + deck assignment |
-| M4 | Quizzes + timers | Quiz types feed the scheduler |
-| M5 | Streaks + reminders | Daily streak + email/push live |
-| M6 | Admin dashboard | Progress + "who's slipping"; pilot with real students |
+| #  | Milestone                       | Outcome                                               |
+| -- | ------------------------------- | ----------------------------------------------------- |
+| M1 | Foundations                     | Accounts, login, data model, one viewable deck        |
+| M2 | SRS review loop                 | "Review Today" works end-to-end (FSRS)                |
+| M3 | Admin add-vocab + AI enrichment | Fast add/enrich + deck assignment                     |
+| M4 | Quizzes + timers                | Quiz types feed the scheduler                         |
+| M5 | Streaks + reminders             | Daily streak + email/push live                        |
+| M6 | Admin dashboard                 | Progress + "who's slipping"; pilot with real students |
+| M7 | Launch hardening + accounts     | Rate limiting, token revocation, secret guard, CI; email verification + Google sign-in |
+
+M1–M6 close out Phase 1 as originally scoped. **M7** is post-Phase-1 work added
+once self-signup went public: it makes the signup path safe to expose (see §5),
+and is what `docs/SETUP_TODO.md` asks you to finish configuring.
 
 ## 8. Phase 2 Backlog (unscoped)
 
@@ -84,13 +89,14 @@ Mock exam simulator · quest generation · document/content library · reading-t
 
 ## 9. Key Risks
 
-| Risk | Why it matters | Mitigation |
-|---|---|---|
+| Risk                                   | Why it matters                            | Mitigation                                                                      |
+| -------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------- |
 | Students won't self-study consistently | Whole outcome depends on unsupervised use | Tiny daily loop; streaks, reminders, teacher visibility substitute for presence |
-| Teacher stops adding words (tedious) | Content dries up → app dies | Obsess over <10s add flow; AI enrichment is core |
-| AI definitions/examples wrong | Bad content undermines trust | Teacher always reviews before saving; nothing auto-publishes |
-| Over-building (library, mock exams) | Classic side-project death | Enforce the "Not Now" list (§5) |
-| Reminders don't land | No nudge → no habit | Start with email (reliable); web push is enhancement only |
+| Teacher stops adding words (tedious)   | Content dries up → app dies              | Obsess over <10s add flow; AI enrichment is core                                |
+| AI definitions/examples wrong          | Bad content undermines trust              | Teacher always reviews before saving; nothing auto-publishes                    |
+| Over-building (library, mock exams)    | Classic side-project death                | Enforce the "Not Now" list (§5)                                                |
+| Reminders don't land                   | No nudge → no habit                      | Start with email (reliable); web push is enhancement only                       |
 
 ---
+
 *Defines Phase 1 scope to prevent scope-creep. Anything not in §4 goes to the Phase 2 backlog (§8), not into Phase 1.*

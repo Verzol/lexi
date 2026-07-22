@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { GoogleSignInButton } from "@/components/ui/GoogleSignInButton";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -14,7 +15,7 @@ function homeFor(role: string): string {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, loading, login } = useAuth();
+  const { user, loading, login, loginWithGoogle } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,6 +39,16 @@ export default function LoginPage() {
         err instanceof ApiError ? err.message : "Could not reach the server. Is the API running?"
       );
       setSubmitting(false);
+    }
+  }
+
+  async function onGoogle(credential: string) {
+    setError(null);
+    try {
+      const signedIn = await loginWithGoogle(credential);
+      router.replace(homeFor(signedIn.role));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Google sign-in failed.");
     }
   }
 
@@ -101,6 +112,10 @@ export default function LoginPage() {
             {submitting ? "Signing in…" : "Sign in"}
           </Button>
         </form>
+
+        <div className="mt-4">
+          <GoogleSignInButton onCredential={onGoogle} onError={setError} />
+        </div>
 
         <p className="mt-5 text-center font-body text-sm text-ink-soft">
           New here?{" "}

@@ -111,8 +111,19 @@ export const auth = {
   /** Public self-signup — always creates a student and logs them straight in. */
   register: (body: { email: string; display_name: string; password: string; timezone?: string }) =>
     api<TokenResponse>("/auth/register", { method: "POST", body: JSON.stringify(body) }),
+  /** Sign in / up with a Google Identity Services credential (ID token). */
+  google: (credential: string) =>
+    api<TokenResponse>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    }),
   logout: () => api<void>("/auth/logout", { method: "POST" }),
   me: () => api<UserOut>("/auth/me"),
+  /** Confirm an email from the signup link. */
+  verifyEmail: (token: string) =>
+    api<UserOut>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) }),
+  /** Re-send the confirmation email to the signed-in user. */
+  resendVerification: () => api<void>("/auth/resend-verification", { method: "POST" }),
 };
 
 /** A card a student authors in their own deck (manual entry only — no AI). */

@@ -63,6 +63,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Google Login
+         * @description Sign in (or sign up) with a Google ID token. Always yields a student.
+         */
+        post: operations["google_login_auth_google_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Email
+         * @description Confirm an email from the signup link. Idempotent — a second click is fine.
+         */
+        post: operations["verify_email_auth_verify_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/resend-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Verification
+         * @description Re-send the confirmation email for the signed-in user, if still needed.
+         */
+        post: operations["resend_verification_auth_resend_verification_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -72,7 +132,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Logout */
+        /**
+         * Logout
+         * @description Log out and revoke every outstanding token for this user by bumping the
+         *     token version — so a captured access or refresh token can't outlive logout.
+         *     Best-effort: an absent or unreadable cookie still clears the browser cookie.
+         */
         post: operations["logout_auth_logout_post"];
         delete?: never;
         options?: never;
@@ -789,6 +854,14 @@ export interface components {
             /** Example Sentence */
             example_sentence: string;
         };
+        /**
+         * GoogleLoginRequest
+         * @description The Google ID token (a signed JWT) returned by Google Identity Services.
+         */
+        GoogleLoginRequest: {
+            /** Credential */
+            credential: string;
+        };
         /** GradeIn */
         GradeIn: {
             /** Card Id */
@@ -1027,6 +1100,10 @@ export interface components {
             timezone: string;
             /** Daily New Target */
             daily_new_target: number;
+            /** Email Verified */
+            email_verified: boolean;
+            /** Auth Provider */
+            auth_provider: string;
         };
         /**
          * UserRole
@@ -1045,6 +1122,11 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** VerifyEmailRequest */
+        VerifyEmailRequest: {
+            /** Token */
+            token: string;
         };
     };
     responses: never;
@@ -1152,7 +1234,73 @@ export interface operations {
             };
         };
     };
-    logout_auth_logout_post: {
+    google_login_auth_google_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_email_auth_verify_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_verification_auth_resend_verification_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1167,6 +1315,35 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    logout_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                lexi_refresh?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

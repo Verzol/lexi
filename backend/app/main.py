@@ -14,9 +14,33 @@ from app.vocab.router import router as vocab_router
 
 settings = get_settings()
 
+_DEFAULT_JWT_SECRET = "dev-secret-change-me"
+
+
+def _guard_production_secrets(cfg) -> None:
+    """Refuse to boot a production process with a forgeable JWT secret.
+
+    `cookie_secure=True` is the production signal (secure cookies need HTTPS).
+    In that mode the built-in dev secret — or any too-short secret — would let
+    anyone mint valid tokens, so fail loudly at startup instead of silently
+    shipping a hole."""
+    if not cfg.cookie_secure:
+        return
+    if cfg.jwt_secret == _DEFAULT_JWT_SECRET:
+        raise RuntimeError(
+            "JWT_SECRET is still the built-in dev default but COOKIE_SECURE=true "
+            "signals production. Set a strong, random JWT_SECRET before deploying."
+        )
+    if len(cfg.jwt_secret) < 32:
+        raise RuntimeError(
+            "JWT_SECRET is too short for production (need at least 32 chars). "
+            "Generate one with e.g. `python -c 'import secrets; print(secrets.token_urlsafe(48))'`."
+        )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _guard_production_secrets(settings)
     # The daily-reminder scheduler lives with the app process (SoW §4 M5).
     start_scheduler()
     try:

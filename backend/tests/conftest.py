@@ -7,6 +7,9 @@ os.environ["DATABASE_URL"] = "postgresql+psycopg://lexi:lexi@localhost:5433/lexi
 # Don't spin up the reminder scheduler thread during tests; reminder logic is
 # exercised directly in test_reminders.py.
 os.environ["REMINDER_ENABLED"] = "false"
+# Off by default so unrelated login/register calls across the suite don't trip
+# the limiter; the dedicated test re-enables it (see test_hardening.py).
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -70,18 +73,21 @@ def seeded(db_session):
         password_hash=hash_password("adminpw"),
         display_name="Verzol",
         role=UserRole.admin,
+        email_verified=True,
     )
     student = User(
         email="mai@lexi.app",
         password_hash=hash_password("studentpw"),
         display_name="Mai Nguyen",
         role=UserRole.student,
+        email_verified=True,
     )
     other = User(
         email="duc@lexi.app",
         password_hash=hash_password("otherpw"),
         display_name="Duc Tran",
         role=UserRole.student,
+        email_verified=True,
     )
     db_session.add_all([admin, student, other])
     db_session.flush()

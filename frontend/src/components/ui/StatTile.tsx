@@ -20,19 +20,14 @@ export function StatTile({
   tone?: Tone;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-border bg-surface px-4 py-3 shadow-card">
-      <span className="font-mono text-[10.5px] font-semibold uppercase tracking-wider text-ink-faint">
+    <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface px-4 py-3.5 shadow-sm">
+      <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
         {label}
       </span>
-      <span
-        className={cn(
-          "font-mono text-xl font-bold tabular-nums leading-none",
-          toneText[tone]
-        )}
-      >
+      <span className={cn("font-display text-[28px] font-semibold leading-none", toneText[tone])}>
         {value}
       </span>
-      {hint ? <span className="text-xs text-ink-soft">{hint}</span> : null}
+      {hint ? <span className="font-body text-xs text-ink-soft">{hint}</span> : null}
     </div>
   );
 }

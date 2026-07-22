@@ -30,6 +30,9 @@ def current_user(
     user = db.get(User, int(payload["sub"]))
     if user is None:
         raise _UNAUTHORIZED
+    # Reject tokens minted before the user's version was bumped (revoked).
+    if payload.get("tv") != user.token_version:
+        raise _UNAUTHORIZED
     return user
 
 

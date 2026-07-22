@@ -17,6 +17,13 @@ dependencies = [
     "fsrs>=5.0",
     "anthropic>=0.116.0",
     "apscheduler>=3.10",
+    # Verifies Google Identity Services ID tokens for /auth/google. `requests` is
+    # the HTTP transport google-auth uses to fetch Google's signing certs.
+    "google-auth>=2.35",
+    "requests>=2.32",
+    # Ship the IANA tz database so ZoneInfo (streak/SRS day boundaries, and the
+    # register-time timezone check) works even where the OS has no zoneinfo.
+    "tzdata>=2024.1",
 ]
 
 [dependency-groups]

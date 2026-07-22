@@ -62,6 +62,7 @@ def main() -> None:
             password_hash=hash_password(settings.seed_admin_password),
             display_name="Verzol",
             role=UserRole.admin,
+            email_verified=True,
         )
         student = get_or_create_user(
             db,
@@ -69,6 +70,7 @@ def main() -> None:
             password_hash=hash_password("changeme"),
             display_name="Mai Nguyen",
             role=UserRole.student,
+            email_verified=True,
         )
 
         deck = db.scalar(select(Deck).where(Deck.name == "Entrance Exam — Core 300"))

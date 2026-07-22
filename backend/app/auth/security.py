@@ -25,7 +25,7 @@ def verify_password(password: str, password_hash: str) -> bool:
     return True
 
 
-def create_token(user_id: int, role: str, token_type: TokenType) -> str:
+def create_token(user_id: int, role: str, token_type: TokenType, token_version: int = 0) -> str:
     now = datetime.now(UTC)
     lifetime = (
         timedelta(minutes=settings.access_token_minutes)
@@ -36,6 +36,9 @@ def create_token(user_id: int, role: str, token_type: TokenType) -> str:
         "sub": str(user_id),
         "role": role,
         "type": token_type,
+        # The token is only valid while it matches the user's current version;
+        # bumping the version (logout / password change) revokes every token.
+        "tv": token_version,
         "iat": now,
         "exp": now + lifetime,
     }
@@ -47,4 +50,24 @@ def decode_token(token: str, expected_type: TokenType) -> dict:
     payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
     if payload.get("type") != expected_type:
         raise jwt.InvalidTokenError(f"expected a {expected_type} token")
+    return payload
+
+
+def create_email_verify_token(user_id: int) -> str:
+    """A signed, short-lived token proving control of the signup email address."""
+    now = datetime.now(UTC)
+    payload = {
+        "sub": str(user_id),
+        "type": "verify",
+        "iat": now,
+        "exp": now + timedelta(hours=settings.email_verify_ttl_hours),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_email_verify_token(token: str) -> dict:
+    """Raises jwt.PyJWTError (incl. expiry) on anything invalid."""
+    payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    if payload.get("type") != "verify":
+        raise jwt.InvalidTokenError("expected an email-verification token")
     return payload

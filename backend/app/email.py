@@ -41,5 +41,17 @@ def send_email(to: str, subject: str, body: str) -> bool:
             server.login(settings.smtp_user, settings.smtp_password or "")
         server.send_message(msg)
 
-    logger.info("Reminder email sent to %s", to)
+    logger.info("Email sent to %s (subject=%s)", to, subject)
     return True
+
+
+def send_verification_email(to: str, display_name: str, verify_url: str) -> bool:
+    """Email the signup verification link. Logged, not sent, without SMTP."""
+    body = (
+        f"Hi {display_name},\n\n"
+        "Confirm your email to finish setting up your Lexi account:\n\n"
+        f"    {verify_url}\n\n"
+        "If you didn't create this account, you can ignore this email.\n\n"
+        "— Lexi"
+    )
+    return send_email(to, "Confirm your Lexi email", body)

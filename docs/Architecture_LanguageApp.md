@@ -28,19 +28,19 @@ Two deployables, communicating via a CORS + token-secured JSON API. All external
 
 ## 3. Stack Choices
 
-| Layer | Choice | Why |
-|---|---|---|
-| Frontend framework | Next.js (App Router, TS) | File-based routing, easy deploy |
-| Styling / data | Tailwind + TanStack Query | Mobile-first styling; caching & loading states |
-| API client | Generated TS client from OpenAPI | Types stay in sync automatically |
-| UI components | shadcn/ui / Radix on Tailwind | Accessible, fast to build card/quiz UI |
-| Backend | FastAPI + SQLAlchemy 2.0 + Alembic | Async, auto OpenAPI, standard migrations |
-| Database | PostgreSQL (Supabase/Neon/Railway) | Reliable, free at this scale |
-| SRS | `py-fsrs` | Modern spacing algorithm, better than SM-2 |
-| Auth | JWT or shared-domain session cookies + argon2 | Works cross-origin; teacher creates accounts |
-| Jobs | APScheduler (in-process) | Daily reminders/rollover — no Celery/Redis needed |
-| Email / Push | Resend/Postmark/SES; `pywebpush` (optional) | Reliable reminders |
-| Hosting | Vercel (frontend), Railway/Render/Fly + Docker (backend) | Cheap, managed TLS |
+| Layer              | Choice                                                   | Why                                                |
+| ------------------ | -------------------------------------------------------- | -------------------------------------------------- |
+| Frontend framework | Next.js (App Router, TS)                                 | File-based routing, easy deploy                    |
+| Styling / data     | Tailwind + TanStack Query                                | Mobile-first styling; caching & loading states     |
+| API client         | Generated TS client from OpenAPI                         | Types stay in sync automatically                   |
+| UI components      | shadcn/ui / Radix on Tailwind                            | Accessible, fast to build card/quiz UI             |
+| Backend            | FastAPI + SQLAlchemy 2.0 + Alembic                       | Async, auto OpenAPI, standard migrations           |
+| Database           | PostgreSQL (Supabase/Neon/Railway)                       | Reliable, free at this scale                       |
+| SRS                | `py-fsrs`                                              | Modern spacing algorithm, better than SM-2         |
+| Auth               | JWT or shared-domain session cookies + argon2            | Works cross-origin; teacher creates accounts       |
+| Jobs               | APScheduler (in-process)                                 | Daily reminders/rollover — no Celery/Redis needed |
+| Email / Push       | Resend/Postmark/SES;`pywebpush` (optional)             | Reliable reminders                                 |
+| Hosting            | Vercel (frontend), Railway/Render/Fly + Docker (backend) | Cheap, managed TLS                                 |
 
 > **Auth note:** frontend/backend are different origins — pick JWT (access + httpOnly refresh cookie) or shared-parent-domain session cookies. CORS restricted to the frontend origin.
 
@@ -63,17 +63,17 @@ Domain-separated backend modules so Phase 2 (exams, quests, library) bolt on as 
 
 All tables have `id`, `created_at`, `updated_at`.
 
-| Table | Key fields |
-|---|---|
-| **users** | email, password_hash, role (`admin`/`student`), timezone, daily_new_target |
-| **languages** | code, name — future-proofing; seed with `en` |
-| **decks** | owner_id, language_id, name, exam_tag, topic_tags |
-| **cards** | deck_id, term, meaning, ipa, example_sentence, image/audio_url, source |
-| **assignments** | student_id, deck_id, daily_new_target override, active |
-| **card_states** | student_id, card_id (unique pair), state, FSRS fields (stability, difficulty, due_at, reps, lapses) |
-| **reviews** | student_id, card_id, rating, reviewed_at, source — immutable log |
-| **streaks** | student_id, current/longest_streak, last_completed_date, freezes_remaining |
-| **quiz_sessions** | student_id, started/finished_at, score, question_count |
+| Table                   | Key fields                                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| **users**         | email, password_hash, role (`admin`/`student`), timezone, daily_new_target                      |
+| **languages**     | code, name — future-proofing; seed with`en`                                                      |
+| **decks**         | owner_id, language_id, name, exam_tag, topic_tags                                                   |
+| **cards**         | deck_id, term, meaning, ipa, example_sentence, image/audio_url, source                              |
+| **assignments**   | student_id, deck_id, daily_new_target override, active                                              |
+| **card_states**   | student_id, card_id (unique pair), state, FSRS fields (stability, difficulty, due_at, reps, lapses) |
+| **reviews**       | student_id, card_id, rating, reviewed_at, source — immutable log                                   |
+| **streaks**       | student_id, current/longest_streak, last_completed_date, freezes_remaining                          |
+| **quiz_sessions** | student_id, started/finished_at, score, question_count                                              |
 
 > **Key design note:** SRS state lives in `card_states`, keyed per **student** — the same teacher-authored deck schedules independently for each of the 12 students.
 
@@ -94,6 +94,7 @@ sequenceDiagram
 ```
 
 **Daily review loop** (student):
+
 ```mermaid
 flowchart LR
     A["GET /review/due"] --> B["Queue loaded client-side"]
@@ -101,6 +102,7 @@ flowchart LR
     C -->|"POST /review/grade\n(FSRS update + reviews row)"| C
     C -->|queue empty| D["streak.check_completion()"]
 ```
+
 Optimistic UI: cards advance instantly, grades POST in the background.
 
 **Quiz:** `quiz.generate()` builds MCQ + type-answer from due/known cards (MCQ distractors from same deck); wrong answers call `srs.grade(again)` to reschedule sooner.
@@ -140,4 +142,5 @@ Right-sized for 12 users: no load-scaling work, review interactions feel instant
 - **Scale** → move APScheduler → Celery+Redis, add caching, only if usage grows an order of magnitude.
 
 ---
+
 *Trades scalability for solo-dev simplicity and speed — sized for ~12 users, structured so Phase 2 is additive.*

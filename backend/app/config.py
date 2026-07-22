@@ -22,12 +22,31 @@ class Settings(BaseSettings):
     # CORS — the frontend origin(s) only, never "*".
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # Auth rate limiting (app/ratelimit.py). In-memory, per-IP. Disabled in the
+    # test suite so unrelated login calls don't trip the limiter. Login is the
+    # brute-force surface; register is the signup-abuse surface, so it's tighter.
+    rate_limit_enabled: bool = True
+    login_rate_limit: int = 10  # attempts...
+    login_rate_window_s: int = 60  # ...per this many seconds, per IP
+    register_rate_limit: int = 5
+    register_rate_window_s: int = 3600
+
     # AI enrichment (vocab/enrichment.py). The key stays server-side; enrichment
     # sends only the vocabulary term, never student data. Model is configurable so
     # it can be swapped (Opus/Sonnet) without a code change. If the key is unset,
     # the enrichment endpoints return 503 rather than crashing the app.
     anthropic_api_key: str | None = None
     enrichment_model: str = "claude-haiku-4-5"
+
+    # Email verification (M7). A signed, short-lived token is emailed on signup;
+    # the link points at the frontend `/verify-email` page, which posts it back.
+    email_verify_ttl_hours: int = 48
+
+    # Google sign-in (M7). The OAuth *Client ID* only — no client secret is needed
+    # for the Google Identity Services ID-token flow. Unset ⇒ /auth/google returns
+    # 503 and the frontend hides the button. This same ID must be exposed to the
+    # frontend as NEXT_PUBLIC_GOOGLE_CLIENT_ID.
+    google_client_id: str | None = None
 
     # Seeded on first migration so the teacher can log in.
     seed_admin_email: str = "teacher@lexi.app"

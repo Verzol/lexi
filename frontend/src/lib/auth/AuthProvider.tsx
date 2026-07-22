@@ -19,6 +19,7 @@ type AuthState = {
     password: string;
     timezone?: string;
   }) => Promise<UserOut>;
+  loginWithGoogle: (credential: string) => Promise<UserOut>;
   logout: () => Promise<void>;
 };
 
@@ -60,6 +61,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return res.user;
   }, []);
 
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    const res = await authApi.google(credential);
+    setAccessToken(res.access_token);
+    setUser(res.user);
+    return res.user;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -70,7 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, loginWithGoogle, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

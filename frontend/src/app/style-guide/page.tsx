@@ -26,13 +26,15 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-5 border-t border-border py-10 first:border-t-0 first:pt-0">
-      <div className="flex flex-col gap-1.5">
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-correction">
+    <section className="flex flex-col gap-6 border-t border-border py-12 first:border-t-0 first:pt-0">
+      <div className="flex flex-col gap-2">
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-pen">
           {eyebrow}
         </span>
-        <h2 className="font-display text-xl font-bold tracking-tight">{title}</h2>
-        {dek ? <p className="max-w-[60ch] font-body text-[15px] text-ink-soft">{dek}</p> : null}
+        <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">{title}</h2>
+        {dek ? (
+          <p className="max-w-[62ch] font-body text-[15px] leading-normal text-ink-soft">{dek}</p>
+        ) : null}
       </div>
       {children}
     </section>
@@ -41,49 +43,69 @@ function Section({
 
 export default function StyleGuidePage() {
   return (
-    <main className="mx-auto flex max-w-4xl flex-col px-6 py-16">
-      <header className="flex flex-col gap-3 pb-10">
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
-          LinguaLoop / Design System
+    <main className="mx-auto flex max-w-4xl flex-col px-6 py-16 sm:py-24">
+      {/* Hero — the product shown as its own artifact: a dictionary entry. */}
+      <header className="flex flex-col gap-8 pb-14">
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
+          Lexi · Design System
         </span>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink">
-          Notebook, not dashboard.
-        </h1>
-        <p className="max-w-[62ch] font-body text-base text-ink-soft">
-          Every screen reads like a page from a student&rsquo;s vocabulary notebook: ruled paper,
-          ballpoint ink, and a teacher&rsquo;s correction pen for what needs attention. Tokens and
-          components below are the source of truth &mdash; build screens by composing these, not
-          by hand-rolling new colors.
-        </p>
-        <div className="flex gap-2 pt-1">
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <h1 className="font-display text-5xl font-semibold tracking-tight text-ink sm:text-[64px]">
+              lexi&middot;con
+            </h1>
+            <span className="font-mono text-lg text-ink-faint">/ˈleksɪkən/</span>
+            <span className="font-display text-lg italic text-ink-soft">n.</span>
+          </div>
+          <div className="h-px w-full max-w-2xl bg-border" aria-hidden />
+          <p className="max-w-[54ch] font-display text-xl leading-snug text-ink">
+            The whole store of words a person knows &mdash; and, here, the one each student builds
+            from memory, one card a day.
+          </p>
+          <p className="max-w-[60ch] font-body text-[15px] leading-normal text-ink-soft">
+            Every screen reads like an entry in that dictionary: a literary headword, a pronunciation
+            key set in mono, a definition in serif. Compose the tokens and components below &mdash;
+            never hand-roll a new color.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2.5 pt-1">
           <Link href="/student">
             <Button variant="secondary" size="sm">
-              View student app →
+              Student app →
             </Button>
           </Link>
           <Link href="/admin">
             <Button variant="secondary" size="sm">
-              View admin app →
+              Admin app →
             </Button>
           </Link>
         </div>
       </header>
 
       <Section
-        eyebrow="01 · Color"
-        title="Palette"
-        dek="Ink blue is the student's pen. Correction red is the teacher's — reserved for what's due or wrong. Check green confirms; highlight marks a streak."
+        eyebrow="Color"
+        title="Archival paper, indigo ink"
+        dek="Indigo ink is the student's pen — links, actions, focus. Correction red is the teacher's, reserved for what's due or wrong. Check green confirms a recall; gold marks a streak."
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {SWATCHES.map((s) => (
             <div
               key={s.name}
-              className="flex h-20 flex-col justify-between rounded-lg border border-border p-3"
+              className="flex h-20 flex-col justify-end rounded-lg border border-border p-3"
               style={{ background: `var(${s.var})` }}
             >
               <span
                 className="font-mono text-[11px] font-semibold uppercase tracking-wider"
-                style={{ color: s.on === "paper" ? "var(--paper)" : s.on === "ink" ? "var(--ink)" : "#fff" }}
+                style={{
+                  color:
+                    s.on === "paper"
+                      ? "var(--paper)"
+                      : s.on === "ink"
+                        ? "var(--ink)"
+                        : "#fff",
+                }}
               >
                 {s.name}
               </span>
@@ -93,31 +115,31 @@ export default function StyleGuidePage() {
       </Section>
 
       <Section
-        eyebrow="02 · Type"
+        eyebrow="Type"
         title="Three roles, three jobs"
-        dek="Be Vietnam Pro carries headings and UI chrome — it was built for Latin + Vietnamese diacritics together. Source Serif reads the actual vocabulary content. JetBrains Mono aligns anything measured: IPA, stats, tags."
+        dek="Fraunces sets the headwords and headings — a literary serif with optical contrast. Be Vietnam Pro runs the interface and supports Latin and Vietnamese together. JetBrains Mono aligns anything measured: IPA, counters, tags."
       >
-        <div className="flex flex-col gap-5">
-          <div>
-            <p className="font-display text-2xl font-bold tracking-tight text-ink">
-              Aa Ăă Ơơ — display / Be Vietnam Pro
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1">
+            <p className="font-display text-3xl font-semibold tracking-tight text-ink">
+              Aa Ăă Ơơ — headwords &amp; headings
             </p>
-            <p className="font-mono text-xs text-ink-faint">headings, buttons, labels</p>
+            <p className="font-mono text-xs text-ink-faint">Fraunces · display serif</p>
           </div>
-          <div>
-            <p className="font-body text-xl italic text-ink">
-              “The entrance exam rewards precision.” — body / Source Serif 4
+          <div className="flex flex-col gap-1">
+            <p className="font-body text-lg text-ink">
+              The entrance exam rewards precision — interface &amp; running text.
             </p>
-            <p className="font-mono text-xs text-ink-faint">definitions, example sentences</p>
+            <p className="font-mono text-xs text-ink-faint">Be Vietnam Pro · UI sans</p>
           </div>
-          <div>
-            <p className="font-mono text-xl text-ink">/æmˈbɪʃəs/ 12/15 — mono / JetBrains Mono</p>
-            <p className="font-mono text-xs text-ink-faint">IPA, counters, tags, code</p>
+          <div className="flex flex-col gap-1">
+            <p className="font-mono text-lg text-ink">/æmˈbɪʃəs/ · 12 / 15 · phrasal-verbs</p>
+            <p className="font-mono text-xs text-ink-faint">JetBrains Mono · pronunciation key</p>
           </div>
         </div>
       </Section>
 
-      <Section eyebrow="03 · Components" title="Buttons">
+      <Section eyebrow="Components" title="Buttons">
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="primary">Save card</Button>
           <Button variant="secondary">Edit</Button>
@@ -128,7 +150,7 @@ export default function StyleGuidePage() {
         </div>
       </Section>
 
-      <Section eyebrow="03 · Components" title="Badges">
+      <Section eyebrow="Components" title="Badges">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="pen">grade-10-entrance</Badge>
           <Badge tone="neutral">phrasal-verbs</Badge>
@@ -138,9 +160,9 @@ export default function StyleGuidePage() {
       </Section>
 
       <Section
-        eyebrow="03 · Components"
+        eyebrow="Components"
         title="Stat tiles"
-        dek="For the admin dashboard — the 'who's slipping' view leans on the correction tone."
+        dek="The dashboard's numbers, set in the display serif so a class at a glance still feels composed, not like a spreadsheet."
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile label="Streak" value="14" hint="days" tone="check" />
@@ -151,23 +173,23 @@ export default function StyleGuidePage() {
       </Section>
 
       <Section
-        eyebrow="04 · Signature"
-        title="The flashcard"
-        dek="A lined index card, not a generic 'card' shape — the punched hole and folded corner are load-bearing: this is the one component every screen in the app is built around."
+        eyebrow="Signature"
+        title="The entry"
+        dek="A dictionary entry, not a generic card: the headword in serif with its pronunciation key, and one ink stroke down the binding edge — the pen that wrote it. Every study screen is built around this shape."
       >
         <div className="grid gap-6 sm:grid-cols-2">
           <Flashcard
             tag={<Badge tone="pen">grade-10-entrance</Badge>}
             term="ambitious"
             ipa="æmˈbɪʃəs"
-            meaning="having a strong desire to succeed or achieve something"
+            meaning="Having a strong desire to succeed or achieve something."
             example="She's ambitious about passing the entrance exam this year."
           />
           <Flashcard
             tag={<Badge tone="correction">due now</Badge>}
             term="resilient"
             ipa="rɪˈzɪliənt"
-            meaning="able to recover quickly from difficulties"
+            meaning="Able to recover quickly from difficulties."
             footer={<GradeButtons />}
           />
         </div>
