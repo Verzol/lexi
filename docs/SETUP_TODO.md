@@ -1,9 +1,13 @@
 # Setup TODO — what *you* still have to turn on
 
-**Status 2026-07-22:** SMTP is configured (Gmail app password) and the whole
-verification flow was tested end-to-end against Supabase — register → email
-delivered → link clicked → `email_verified` flipped in the database. Supabase is
-migrated. What's left is §1 (Google) and §3 (production).
+**Status 2026-07-22 — local setup is done.** SMTP is configured (Gmail app
+password) and the verification flow was tested end-to-end against Supabase:
+register → email delivered → link clicked → `email_verified` flipped in the
+database. The Google OAuth Client ID is created and matches across
+`backend/.env` and `frontend/.env.local`. Supabase is migrated to head.
+
+**Left to do: §3 only** — the production checklist, for whenever you deploy.
+§1 and §2 are kept as a record of what was set up and how to redo it.
 
 Until each block below is done the app still runs fine — it just degrades
 quietly:
@@ -15,9 +19,9 @@ quietly:
 
 ---
 
-## 1. Google sign-in — create the OAuth Client ID
+## 1. Google sign-in — create the OAuth Client ID ✅ done
 
-You have to do this one yourself; it needs your Google account.
+Kept for reference (and for redoing it against a production domain).
 
 1. Google Cloud Console → **APIs & Services → Credentials → Create credentials → OAuth client ID**.
    (If it asks you to configure the consent screen first: External, app name "Lexi",
@@ -41,7 +45,7 @@ You have to do this one yourself; it needs your Google account.
    that is *not* a seeded user → a new `student` is created with
    `auth_provider="google"`, `email_verified=true`, `password_hash=NULL`.
 
-## 2. Email — point it at a real SMTP provider
+## 2. Email — point it at a real SMTP provider ✅ done (Gmail app password)
 
 Uncomment and fill in the `SMTP_*` block in `backend/.env` (see
 `backend/.env.example`). Any transactional provider works — Resend, Postmark,
