@@ -58,6 +58,13 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      # Not `npm ci`: the lockfile is written on Windows, where npm never
+      # installs @tailwindcss/oxide-wasm32-wasi (cpu wasm32) and so omits two of
+      # its bundled deps (@emnapi/core, @emnapi/runtime). On Linux npm wants
+      # them and `npm ci` hard-fails as "out of sync". Regenerating the lock
+      # doesn't help — the omission comes back every install. `npm install`
+      # still honours every pinned version in the lock; it just tops up that
+      # optional subtree instead of refusing to run.
+      - run: npm install --no-audit --no-fund
       - run: npx tsc --noEmit
       - run: npm run lint
